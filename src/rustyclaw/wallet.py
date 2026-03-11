@@ -1,0 +1,1 @@
+"""RustyClaw wallet module."""
