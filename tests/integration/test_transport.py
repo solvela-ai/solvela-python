@@ -4,9 +4,8 @@ from __future__ import annotations
 import json
 
 import pytest
-import httpx
 
-from rustyclaw.errors import GatewayError, PaymentRequiredError
+from rustyclaw.errors import GatewayError
 from rustyclaw.transport import Transport
 from rustyclaw.types import (
     ChatMessage,

@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import json
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 import httpx
 
-from rustyclaw.errors import GatewayError, TimeoutError as RCTimeoutError
+from rustyclaw.errors import GatewayError
+from rustyclaw.errors import TimeoutError as RCTimeoutError
 from rustyclaw.types import ChatChunk, ChatRequest, ChatResponse, PaymentRequired
 
 

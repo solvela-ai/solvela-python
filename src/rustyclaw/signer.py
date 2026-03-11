@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
+from rustyclaw.constants import USDC_MINT, X402_VERSION
 from rustyclaw.errors import SignerError
 from rustyclaw.types import PaymentAccept, PaymentPayload, Resource, SolanaPayload
 from rustyclaw.wallet import Wallet
-from rustyclaw.constants import USDC_MINT, X402_VERSION
 
 
 class Signer(ABC):
@@ -122,7 +122,7 @@ class KeypairSigner(Signer):
             raise SignerError(f"Failed to sign payment: {e}") from e
 
     @staticmethod
-    def _derive_ata(owner: "Pubkey", mint: "Pubkey") -> "Pubkey":
+    def _derive_ata(owner: Pubkey, mint: Pubkey) -> Pubkey:
         """Derive Associated Token Account address."""
         from solders.pubkey import Pubkey
 

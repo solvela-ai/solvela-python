@@ -10,16 +10,9 @@ from rustyclaw.constants import (
 )
 from rustyclaw.types import (
     ChatChunk,
-    ChatChunkChoice,
-    ChatChoice,
-    ChatDelta,
     ChatMessage,
     ChatRequest,
     ChatResponse,
-    CostBreakdown,
-    FunctionCall,
-    FunctionCallDelta,
-    FunctionDefinitionInner,
     ModelInfo,
     PaymentAccept,
     PaymentPayload,
@@ -27,12 +20,7 @@ from rustyclaw.types import (
     Resource,
     Role,
     SolanaPayload,
-    ToolCall,
-    ToolCallDelta,
-    ToolDefinition,
-    Usage,
 )
-
 
 # --- Constants ---
 
