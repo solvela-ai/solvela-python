@@ -1,0 +1,25 @@
+"""Live test configuration — skipped unless RUSTYCLAW_LIVE_TESTS=1."""
+from __future__ import annotations
+
+import os
+
+import pytest
+
+from rustyclaw.client import RustyClawClient
+from rustyclaw.config import ClientConfig
+
+GATEWAY_URL = os.environ.get("RUSTYCLAW_GATEWAY_URL", "http://localhost:8402")
+
+
+@pytest.fixture
+def live_client():
+    config = ClientConfig(gateway_url=GATEWAY_URL)
+    return RustyClawClient(config=config)
+
+
+def pytest_collection_modifyitems(config, items):
+    if os.environ.get("RUSTYCLAW_LIVE_TESTS") != "1":
+        skip = pytest.mark.skip(reason="Set RUSTYCLAW_LIVE_TESTS=1 to run")
+        for item in items:
+            if "live" in str(item.fspath):
+                item.add_marker(skip)
