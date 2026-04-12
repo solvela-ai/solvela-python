@@ -1,14 +1,14 @@
-"""Integration tests for RustyClawClient — HTTP mocking via pytest-httpx."""
+"""Integration tests for SolvelaClient — HTTP mocking via pytest-httpx."""
 from __future__ import annotations
 
 import json
 
 import pytest
 
-from rustyclaw.client import RustyClawClient
-from rustyclaw.config import ClientConfig
-from rustyclaw.errors import PaymentRequiredError
-from rustyclaw.types import ChatMessage, ChatRequest, ChatResponse, Role
+from solvela.client import SolvelaClient
+from solvela.config import ClientConfig
+from solvela.errors import PaymentRequiredError
+from solvela.types import ChatMessage, ChatRequest, ChatResponse, Role
 
 GATEWAY_URL = "https://gw.test.local"
 
@@ -75,7 +75,7 @@ async def test_chat_success(httpx_mock) -> None:
         status_code=200,
     )
     config = ClientConfig(gateway_url=GATEWAY_URL)
-    client = RustyClawClient(config=config)
+    client = SolvelaClient(config=config)
     response = await client.chat(_chat_request())
     assert isinstance(response, ChatResponse)
     assert response.id == "chatcmpl-1"
@@ -91,7 +91,7 @@ async def test_chat_with_cache(httpx_mock) -> None:
         status_code=200,
     )
     config = ClientConfig(gateway_url=GATEWAY_URL, enable_cache=True)
-    client = RustyClawClient(config=config)
+    client = SolvelaClient(config=config)
 
     req = _chat_request()
     resp1 = await client.chat(req)
@@ -136,7 +136,7 @@ async def test_chat_quality_retry(httpx_mock) -> None:
         enable_quality_check=True,
         max_quality_retries=1,
     )
-    client = RustyClawClient(config=config)
+    client = SolvelaClient(config=config)
     response = await client.chat(_chat_request())
 
     assert response.choices[0].message.content == "Hi there!"
@@ -152,7 +152,7 @@ async def test_chat_402_without_signer(httpx_mock) -> None:
         status_code=402,
     )
     config = ClientConfig(gateway_url=GATEWAY_URL)
-    client = RustyClawClient(config=config)
+    client = SolvelaClient(config=config)
 
     with pytest.raises(PaymentRequiredError):
         await client.chat(_chat_request())
@@ -170,7 +170,7 @@ async def test_chat_balance_guard_fallback(httpx_mock) -> None:
         gateway_url=GATEWAY_URL,
         free_fallback_model="free-model",
     )
-    client = RustyClawClient(config=config)
+    client = SolvelaClient(config=config)
     client._last_balance = 0.0
 
     await client.chat(_chat_request(model="gpt-4o"))

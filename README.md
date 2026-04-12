@@ -1,11 +1,11 @@
-# rustyclaw
+# solvela
 
-Python SDK for [RustyClawRouter](https://github.com/kennethdixon/RustyClawRouter) — a Solana-native AI agent payment gateway. AI agents pay for LLM API calls with USDC-SPL on Solana via the x402 protocol.
+Python SDK for [SolvelaRouter](https://github.com/kennethdixon/SolvelaRouter) — a Solana-native AI agent payment gateway. AI agents pay for LLM API calls with USDC-SPL on Solana via the x402 protocol.
 
 ## Installation
 
 ```bash
-pip install rustyclaw
+pip install solvela
 ```
 
 For development:
@@ -18,7 +18,7 @@ pip install -e ".[dev]"
 
 ```python
 import asyncio
-from rustyclaw import RustyClawClient, ClientConfig, Wallet
+from solvela import SolvelaClient, ClientConfig, Wallet
 
 async def main():
     wallet, mnemonic = Wallet.create()
@@ -26,7 +26,7 @@ async def main():
     print(f"Mnemonic (save this!): {mnemonic}")
 
     config = ClientConfig(gateway_url="http://localhost:8402")
-    client = RustyClawClient(config=config, wallet=wallet)
+    client = SolvelaClient(config=config, wallet=wallet)
 
     # List available models
     models = await client.models()
@@ -43,10 +43,10 @@ asyncio.run(main())
 ## OpenAI-Compatible Interface
 
 ```python
-from rustyclaw import RustyClawClient
-from rustyclaw.openai_compat import OpenAICompat
+from solvela import SolvelaClient
+from solvela.openai_compat import OpenAICompat
 
-client = RustyClawClient()
+client = SolvelaClient()
 openai = OpenAICompat(client)
 
 # Same interface as the OpenAI Python SDK
@@ -67,7 +67,7 @@ response = await openai.chat.completions.create(
 ## Configuration
 
 ```python
-from rustyclaw import ClientConfig, ClientBuilder
+from solvela import ClientConfig, ClientBuilder
 
 # Dataclass
 config = ClientConfig(

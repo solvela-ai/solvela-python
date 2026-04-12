@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import time
 
-from rustyclaw.session import SessionStore
-from rustyclaw.types import ChatMessage, Role
+from solvela.session import SessionStore
+from solvela.types import ChatMessage, Role
 
 
 def _msgs(*contents: str) -> list[ChatMessage]:

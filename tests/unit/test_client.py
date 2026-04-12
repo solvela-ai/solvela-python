@@ -1,15 +1,15 @@
-"""Unit tests for RustyClawClient — construction and basic properties."""
+"""Unit tests for SolvelaClient — construction and basic properties."""
 from __future__ import annotations
 
-from rustyclaw.client import RustyClawClient
-from rustyclaw.config import ClientConfig
-from rustyclaw.wallet import Wallet
+from solvela.client import SolvelaClient
+from solvela.config import ClientConfig
+from solvela.wallet import Wallet
 
 
 class TestClientCreation:
     def test_client_creation(self) -> None:
         config = ClientConfig(gateway_url="https://example.com")
-        client = RustyClawClient(config=config)
+        client = SolvelaClient(config=config)
         assert client._config.gateway_url == "https://example.com"
         assert client._wallet is None
         assert client._signer is None
@@ -17,15 +17,15 @@ class TestClientCreation:
     def test_client_creation_with_wallet(self) -> None:
         wallet, _ = Wallet.create()
         config = ClientConfig()
-        client = RustyClawClient(config=config, wallet=wallet)
+        client = SolvelaClient(config=config, wallet=wallet)
         assert client._wallet is wallet
 
     def test_client_last_known_balance_initially_none(self) -> None:
-        client = RustyClawClient()
+        client = SolvelaClient()
         assert client.last_known_balance() is None
 
     def test_client_debug_redacts(self) -> None:
-        client = RustyClawClient()
+        client = SolvelaClient()
         r = repr(client)
         assert "REDACTED" in r
         assert "wallet" not in r.replace("wallet=REDACTED", "")
@@ -33,7 +33,7 @@ class TestClientCreation:
 
 class TestBalanceStateSetter:
     def test_balance_state_setter_updates_balance(self) -> None:
-        client = RustyClawClient()
+        client = SolvelaClient()
         setter = client.balance_state_setter()
         assert client.last_known_balance() is None
         setter(42.5)

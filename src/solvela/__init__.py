@@ -1,9 +1,9 @@
-"""RustyClaw Python SDK — Solana-native AI agent payment client."""
+"""Solvela Python SDK — Solana-native AI agent payment client."""
 
-from rustyclaw.balance import BalanceMonitor
-from rustyclaw.client import RustyClawClient
-from rustyclaw.config import ClientBuilder, ClientConfig
-from rustyclaw.errors import (
+from solvela.balance import BalanceMonitor
+from solvela.client import SolvelaClient
+from solvela.config import ClientBuilder, ClientConfig
+from solvela.errors import (
     AmountExceedsMaxError,
     ClientError,
     GatewayError,
@@ -15,12 +15,12 @@ from rustyclaw.errors import (
     TimeoutError,
     WalletError,
 )
-from rustyclaw.signer import KeypairSigner, Signer
-from rustyclaw.wallet import Wallet
+from solvela.signer import KeypairSigner, Signer
+from solvela.wallet import Wallet
 
 __all__ = [
     "BalanceMonitor",
-    "RustyClawClient",
+    "SolvelaClient",
     "ClientBuilder",
     "ClientConfig",
     "AmountExceedsMaxError",

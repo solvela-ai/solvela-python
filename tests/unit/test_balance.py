@@ -5,7 +5,7 @@ import asyncio
 
 import pytest
 
-from rustyclaw.balance import BalanceMonitor
+from solvela.balance import BalanceMonitor
 
 
 @pytest.mark.asyncio

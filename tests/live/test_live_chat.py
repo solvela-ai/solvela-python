@@ -1,10 +1,10 @@
-"""Live contract tests — require a running RustyClaw gateway."""
+"""Live contract tests — require a running Solvela gateway."""
 from __future__ import annotations
 
 import pytest
 
-from rustyclaw.errors import PaymentRequiredError
-from rustyclaw.types import ChatMessage, ChatRequest, Role
+from solvela.errors import PaymentRequiredError
+from solvela.types import ChatMessage, ChatRequest, Role
 
 
 @pytest.mark.asyncio

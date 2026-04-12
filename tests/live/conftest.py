@@ -5,8 +5,8 @@ import os
 
 import pytest
 
-from rustyclaw.client import RustyClawClient
-from rustyclaw.config import ClientConfig
+from solvela.client import SolvelaClient
+from solvela.config import ClientConfig
 
 GATEWAY_URL = os.environ.get("RUSTYCLAW_GATEWAY_URL", "http://localhost:8402")
 
@@ -14,7 +14,7 @@ GATEWAY_URL = os.environ.get("RUSTYCLAW_GATEWAY_URL", "http://localhost:8402")
 @pytest.fixture
 def live_client():
     config = ClientConfig(gateway_url=GATEWAY_URL)
-    return RustyClawClient(config=config)
+    return SolvelaClient(config=config)
 
 
 def pytest_collection_modifyitems(config, items):

@@ -1,4 +1,4 @@
-"""RustyClaw client configuration and builder."""
+"""Solvela client configuration and builder."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -6,7 +6,7 @@ from dataclasses import dataclass
 
 @dataclass
 class ClientConfig:
-    """Configuration for the RustyClaw client."""
+    """Configuration for the Solvela client."""
 
     gateway_url: str = "http://localhost:8402"
     rpc_url: str = "https://api.mainnet-beta.solana.com"

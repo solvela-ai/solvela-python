@@ -1,12 +1,12 @@
-"""RustyClaw signer — pluggable payment signing interface."""
+"""Solvela signer — pluggable payment signing interface."""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from rustyclaw.constants import USDC_MINT, X402_VERSION
-from rustyclaw.errors import SignerError
-from rustyclaw.types import PaymentAccept, PaymentPayload, Resource, SolanaPayload
-from rustyclaw.wallet import Wallet
+from solvela.constants import USDC_MINT, X402_VERSION
+from solvela.errors import SignerError
+from solvela.types import PaymentAccept, PaymentPayload, Resource, SolanaPayload
+from solvela.wallet import Wallet
 
 
 class Signer(ABC):

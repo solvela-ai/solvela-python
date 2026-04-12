@@ -1,4 +1,4 @@
-"""RustyClaw wire-format types — OpenAI-compatible chat and x402 payment types."""
+"""Solvela wire-format types — OpenAI-compatible chat and x402 payment types."""
 from __future__ import annotations
 
 import hashlib

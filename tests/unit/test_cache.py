@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import time
 
-from rustyclaw.cache import ResponseCache
-from rustyclaw.types import ChatChoice, ChatMessage, ChatResponse, Role, Usage
+from solvela.cache import ResponseCache
+from solvela.types import ChatChoice, ChatMessage, ChatResponse, Role, Usage
 
 
 def _make_response(content: str = "Hello") -> ChatResponse:

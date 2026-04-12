@@ -4,9 +4,9 @@ from __future__ import annotations
 import pytest
 from solders.pubkey import Pubkey  # type: ignore[import-untyped]
 
-from rustyclaw.constants import USDC_MINT
-from rustyclaw.signer import KeypairSigner, Signer
-from rustyclaw.wallet import Wallet
+from solvela.constants import USDC_MINT
+from solvela.signer import KeypairSigner, Signer
+from solvela.wallet import Wallet
 
 
 class TestSignerInterface:

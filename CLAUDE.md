@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with the rustyclaw-python SDK.
+This file provides guidance to Claude Code when working with the solvela-python SDK.
 
 ## Build / Test / Lint Commands
 
@@ -17,7 +17,7 @@ pytest tests/unit/test_client.py -v
 # Run tests matching a pattern
 pytest tests/unit/ -k "test_cache_hit" -v
 
-# Live contract tests (requires running RustyClawRouter gateway)
+# Live contract tests (requires running SolvelaRouter gateway)
 RUSTYCLAW_LIVE_TESTS=1 pytest tests/live/ -v
 
 # Linting
@@ -30,13 +30,13 @@ mypy src/
 
 ## Architecture
 
-Python SDK for RustyClawRouter — enables AI agents to pay for LLM API calls with USDC-SPL tokens on Solana via the x402 protocol. This is the client SDK; the server is RustyClawRouter (Rust/Axum).
+Python SDK for SolvelaRouter — enables AI agents to pay for LLM API calls with USDC-SPL tokens on Solana via the x402 protocol. This is the client SDK; the server is SolvelaRouter (Rust/Axum).
 
 ### Module Map
 
 ```
-src/rustyclaw/
-  client.py        # RustyClawClient — high-level 7-step smart chat flow
+src/solvela/
+  client.py        # SolvelaClient — high-level 7-step smart chat flow
   config.py        # ClientConfig dataclass + ClientBuilder (fluent API)
   transport.py     # Async HTTP + SSE streaming via httpx
   types.py         # Wire-format dataclasses — OpenAI-compatible chat + x402 payment types
@@ -53,7 +53,7 @@ src/rustyclaw/
 
 ### Smart Chat Flow (client.py)
 
-The `RustyClawClient.chat()` method runs a 7-step pipeline:
+The `SolvelaClient.chat()` method runs a 7-step pipeline:
 1. Balance guard — fallback to free model when USDC balance is zero
 2. Session lookup — derive session from messages, track conversation state
 3. Cache check — after model finalization to prevent cross-model pollution

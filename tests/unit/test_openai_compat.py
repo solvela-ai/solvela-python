@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from rustyclaw.openai_compat import OpenAICompat
-from rustyclaw.types import ChatMessage, ChatRequest, ChatResponse, Role
+from solvela.openai_compat import OpenAICompat
+from solvela.types import ChatMessage, ChatRequest, ChatResponse, Role
 
 
 @pytest.mark.asyncio

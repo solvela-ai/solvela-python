@@ -1,7 +1,7 @@
 """Tests for ClientConfig and ClientBuilder."""
 from __future__ import annotations
 
-from rustyclaw.config import ClientBuilder, ClientConfig
+from solvela.config import ClientBuilder, ClientConfig
 
 
 class TestClientConfig:

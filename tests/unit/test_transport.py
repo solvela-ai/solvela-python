@@ -1,7 +1,7 @@
 """Unit tests for Transport — URL/header construction."""
 from __future__ import annotations
 
-from rustyclaw.transport import Transport
+from solvela.transport import Transport
 
 
 class TestBuildUrl:

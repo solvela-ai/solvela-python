@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import pytest
 
-from rustyclaw.errors import WalletError
-from rustyclaw.wallet import Wallet
+from solvela.errors import WalletError
+from solvela.wallet import Wallet
 
 
 class TestWalletCreate:

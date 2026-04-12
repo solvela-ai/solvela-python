@@ -1,14 +1,14 @@
-"""Tests for rustyclaw.types and rustyclaw.constants."""
+"""Tests for solvela.types and solvela.constants."""
 from __future__ import annotations
 
-from rustyclaw.constants import (
+from solvela.constants import (
     MAX_TIMEOUT_SECONDS,
     PLATFORM_FEE_PERCENT,
     SOLANA_NETWORK,
     USDC_MINT,
     X402_VERSION,
 )
-from rustyclaw.types import (
+from solvela.types import (
     ChatChunk,
     ChatMessage,
     ChatRequest,

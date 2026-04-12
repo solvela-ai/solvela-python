@@ -1,22 +1,22 @@
-"""RustyClaw client — smart chat flow with payment, caching, sessions, quality checks."""
+"""Solvela client — smart chat flow with payment, caching, sessions, quality checks."""
 from __future__ import annotations
 
 import base64
 import json
 from typing import TYPE_CHECKING
 
-from rustyclaw.cache import ResponseCache
-from rustyclaw.config import ClientConfig
-from rustyclaw.errors import (
+from solvela.cache import ResponseCache
+from solvela.config import ClientConfig
+from solvela.errors import (
     AmountExceedsMaxError,
     ClientError,
     PaymentRequiredError,
     RecipientMismatchError,
 )
-from rustyclaw.quality import check_degraded
-from rustyclaw.session import SessionStore
-from rustyclaw.transport import Transport
-from rustyclaw.types import (
+from solvela.quality import check_degraded
+from solvela.session import SessionStore
+from solvela.transport import Transport
+from solvela.types import (
     ChatChunk,
     ChatMessage,
     ChatRequest,
@@ -30,12 +30,12 @@ from rustyclaw.types import (
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator, Callable
 
-    from rustyclaw.signer import Signer
-    from rustyclaw.wallet import Wallet
+    from solvela.signer import Signer
+    from solvela.wallet import Wallet
 
 
-class RustyClawClient:
-    """High-level client for the RustyClaw gateway with smart chat flow."""
+class SolvelaClient:
+    """High-level client for the Solvela gateway with smart chat flow."""
 
     def __init__(
         self,
@@ -276,7 +276,7 @@ class RustyClawClient:
         import httpx
         from solders.pubkey import Pubkey
 
-        from rustyclaw.constants import USDC_MINT
+        from solvela.constants import USDC_MINT
 
         owner = Pubkey.from_string(address)
         mint = Pubkey.from_string(USDC_MINT)
@@ -305,4 +305,4 @@ class RustyClawClient:
             return float(data["result"]["value"]["uiAmount"] or 0.0)
 
     def __repr__(self) -> str:
-        return f"RustyClawClient(gateway={self._config.gateway_url}, wallet=REDACTED)"
+        return f"SolvelaClient(gateway={self._config.gateway_url}, wallet=REDACTED)"

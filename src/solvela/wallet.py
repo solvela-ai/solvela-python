@@ -1,4 +1,4 @@
-"""RustyClaw wallet — Solana keypair management."""
+"""Solvela wallet — Solana keypair management."""
 from __future__ import annotations
 
 import os
@@ -7,7 +7,7 @@ from mnemonic import Mnemonic
 from solders.keypair import Keypair  # type: ignore[import-untyped]
 from solders.pubkey import Pubkey  # type: ignore[import-untyped]
 
-from rustyclaw.errors import WalletError
+from solvela.errors import WalletError
 
 _BIP39 = Mnemonic("english")
 

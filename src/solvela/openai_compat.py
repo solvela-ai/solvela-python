@@ -1,18 +1,18 @@
-"""OpenAI-compatible wrapper for RustyClawClient."""
+"""OpenAI-compatible wrapper for SolvelaClient."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from rustyclaw.types import ChatMessage, ChatRequest, Role
+from solvela.types import ChatMessage, ChatRequest, Role
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
-    from rustyclaw.types import ChatChunk, ChatResponse
+    from solvela.types import ChatChunk, ChatResponse
 
 
 class OpenAICompat:
-    """OpenAI-compatible wrapper for RustyClawClient.
+    """OpenAI-compatible wrapper for SolvelaClient.
 
     Usage:
         openai = OpenAICompat(client)

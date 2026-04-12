@@ -7,7 +7,7 @@ import time
 from collections import deque
 from dataclasses import dataclass
 
-from rustyclaw.types import ChatMessage
+from solvela.types import ChatMessage
 
 _MAX_RECENT_HASHES = 10
 _THREE_STRIKE_THRESHOLD = 3

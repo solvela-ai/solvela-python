@@ -1,4 +1,4 @@
-"""RustyClaw transport — async HTTP + SSE streaming via httpx."""
+"""Solvela transport — async HTTP + SSE streaming via httpx."""
 from __future__ import annotations
 
 import json
@@ -6,13 +6,13 @@ from collections.abc import AsyncIterator
 
 import httpx
 
-from rustyclaw.errors import GatewayError
-from rustyclaw.errors import TimeoutError as RCTimeoutError
-from rustyclaw.types import ChatChunk, ChatRequest, ChatResponse, PaymentRequired
+from solvela.errors import GatewayError
+from solvela.errors import TimeoutError as RCTimeoutError
+from solvela.types import ChatChunk, ChatRequest, ChatResponse, PaymentRequired
 
 
 class Transport:
-    """Async HTTP transport for the RustyClaw gateway."""
+    """Async HTTP transport for the Solvela gateway."""
 
     def __init__(self, base_url: str, timeout: float = 180.0) -> None:
         self._base_url = base_url.rstrip("/")
@@ -82,7 +82,7 @@ class Transport:
         body = request.to_dict()
         body["stream"] = True
 
-        from rustyclaw.errors import PaymentRequiredError
+        from solvela.errors import PaymentRequiredError
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             async with client.stream("POST", url, json=body, headers=headers) as resp:

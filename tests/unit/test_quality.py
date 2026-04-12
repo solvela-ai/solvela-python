@@ -1,7 +1,7 @@
 """Tests for quality check — degraded response detection."""
 from __future__ import annotations
 
-from rustyclaw.quality import DegradedReason, check_degraded
+from solvela.quality import DegradedReason, check_degraded
 
 
 class TestEmptyContent:

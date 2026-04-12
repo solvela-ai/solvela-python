@@ -5,9 +5,9 @@ import json
 
 import pytest
 
-from rustyclaw.errors import GatewayError
-from rustyclaw.transport import Transport
-from rustyclaw.types import (
+from solvela.errors import GatewayError
+from solvela.transport import Transport
+from solvela.types import (
     ChatMessage,
     ChatRequest,
     ChatResponse,

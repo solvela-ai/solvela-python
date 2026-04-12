@@ -1,7 +1,7 @@
-"""Tests for rustyclaw.errors."""
+"""Tests for solvela.errors."""
 from __future__ import annotations
 
-from rustyclaw.errors import (
+from solvela.errors import (
     AmountExceedsMaxError,
     ClientError,
     GatewayError,
@@ -13,7 +13,7 @@ from rustyclaw.errors import (
     TimeoutError,
     WalletError,
 )
-from rustyclaw.types import (
+from solvela.types import (
     CostBreakdown,
     PaymentAccept,
     PaymentRequired,
