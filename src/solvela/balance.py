@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
+
+logger = logging.getLogger(__name__)
 
 
 class BalanceMonitor:
@@ -58,7 +61,7 @@ class BalanceMonitor:
             except asyncio.CancelledError:
                 break
             except Exception:
-                pass  # swallow errors, keep polling
+                logger.debug("Balance fetch failed", exc_info=True)
 
             try:
                 await asyncio.sleep(self._poll_interval)
