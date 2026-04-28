@@ -118,7 +118,7 @@ class SolvelaClient:
                     break
                 response = await self._send_with_payment(
                     effective_request,
-                    extra_headers={"X-RCR-Retry-Reason": "degraded"},
+                    extra_headers={"X-Solvela-Retry-Reason": "degraded"},
                 )
 
         # Step 6: Cache store

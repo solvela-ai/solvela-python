@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 from solvela.errors import GatewayError
-from solvela.errors import TimeoutError as RCTimeoutError
+from solvela.errors import TimeoutError as SolvelaTimeoutError
 from solvela.types import ChatChunk, ChatRequest, ChatResponse, PaymentRequired
 
 
@@ -56,7 +56,7 @@ class Transport:
             try:
                 resp = await client.post(url, json=body, headers=headers)
             except httpx.TimeoutException as err:
-                raise RCTimeoutError(self._timeout) from err
+                raise SolvelaTimeoutError(self._timeout) from err
 
             if resp.status_code == 200:
                 return ChatResponse.from_dict(resp.json())
