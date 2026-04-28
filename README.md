@@ -1,6 +1,6 @@
 # solvela
 
-Python SDK for [SolvelaRouter](https://github.com/kennethdixon/SolvelaRouter) — a Solana-native AI agent payment gateway. AI agents pay for LLM API calls with USDC-SPL on Solana via the x402 protocol.
+Python SDK for [Solvela](https://github.com/solvela-ai/solvela) — a Solana-native AI agent payment gateway. AI agents pay for LLM API calls with USDC-SPL on Solana via the x402 protocol.
 
 ## Installation
 

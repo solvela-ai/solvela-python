@@ -17,7 +17,7 @@ pytest tests/unit/test_client.py -v
 # Run tests matching a pattern
 pytest tests/unit/ -k "test_cache_hit" -v
 
-# Live contract tests (requires running SolvelaRouter gateway)
+# Live contract tests (requires running Solvela gateway)
 SOLVELA_LIVE_TESTS=1 pytest tests/live/ -v
 
 # Linting
@@ -30,7 +30,7 @@ mypy src/
 
 ## Architecture
 
-Python SDK for SolvelaRouter — enables AI agents to pay for LLM API calls with USDC-SPL tokens on Solana via the x402 protocol. This is the client SDK; the server is SolvelaRouter (Rust/Axum).
+Python SDK for Solvela — enables AI agents to pay for LLM API calls with USDC-SPL tokens on Solana via the x402 protocol. This is the client SDK; the server is Solvela (Rust/Axum).
 
 ### Module Map
 
