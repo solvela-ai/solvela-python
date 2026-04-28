@@ -2,11 +2,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 from solvela.constants import USDC_MINT, X402_VERSION
 from solvela.errors import SignerError
 from solvela.types import PaymentAccept, PaymentPayload, Resource, SolanaPayload
-from solvela.wallet import Wallet
+
+if TYPE_CHECKING:
+    from solders.pubkey import Pubkey  # type: ignore[import-untyped]
+
+    from solvela.wallet import Wallet
 
 
 class Signer(ABC):

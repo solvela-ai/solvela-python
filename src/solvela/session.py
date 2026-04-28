@@ -6,8 +6,10 @@ import threading
 import time
 from collections import deque
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from solvela.types import ChatMessage
+if TYPE_CHECKING:
+    from solvela.types import ChatMessage
 
 _MAX_RECENT_HASHES = 10
 _THREE_STRIKE_THRESHOLD = 3

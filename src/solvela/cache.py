@@ -5,8 +5,10 @@ import hashlib
 import threading
 import time
 from collections import OrderedDict
+from typing import TYPE_CHECKING
 
-from solvela.types import ChatMessage, ChatResponse
+if TYPE_CHECKING:
+    from solvela.types import ChatMessage, ChatResponse
 
 _DEFAULT_MAX_ENTRIES = 200
 _DEFAULT_TTL = 600.0

@@ -48,7 +48,10 @@ class TestTruncatedMidWord:
 
     def test_content_ending_with_period_not_truncated(self) -> None:
         # >100 chars ending with period — not truncated
-        content = "This is a perfectly normal response that happens to be quite long and contains enough words to exceed the threshold easily."
+        content = (
+            "This is a perfectly normal response that happens to be quite long"
+            " and contains enough words to exceed the threshold easily."
+        )
         assert len(content) > 100
         assert check_degraded(content) is None
 

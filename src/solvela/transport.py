@@ -2,9 +2,12 @@
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 
 import httpx
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 from solvela.errors import GatewayError
 from solvela.errors import TimeoutError as RCTimeoutError
@@ -52,8 +55,8 @@ class Transport:
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             try:
                 resp = await client.post(url, json=body, headers=headers)
-            except httpx.TimeoutException:
-                raise RCTimeoutError(self._timeout)
+            except httpx.TimeoutException as err:
+                raise RCTimeoutError(self._timeout) from err
 
             if resp.status_code == 200:
                 return ChatResponse.from_dict(resp.json())
@@ -84,8 +87,10 @@ class Transport:
 
         from solvela.errors import PaymentRequiredError
 
-        async with httpx.AsyncClient(timeout=self._timeout) as client:
-            async with client.stream("POST", url, json=body, headers=headers) as resp:
+        async with (
+            httpx.AsyncClient(timeout=self._timeout) as client,
+            client.stream("POST", url, json=body, headers=headers) as resp,
+        ):
                 if resp.status_code == 402:
                     raw = await resp.aread()
                     pr = PaymentRequired.from_dict(json.loads(raw))
