@@ -1,4 +1,4 @@
-"""Live test configuration — skipped unless RUSTYCLAW_LIVE_TESTS=1."""
+"""Live test configuration — skipped unless SOLVELA_LIVE_TESTS=1."""
 from __future__ import annotations
 
 import os
@@ -8,7 +8,7 @@ import pytest
 from solvela.client import SolvelaClient
 from solvela.config import ClientConfig
 
-GATEWAY_URL = os.environ.get("RUSTYCLAW_GATEWAY_URL", "http://localhost:8402")
+GATEWAY_URL = os.environ.get("SOLVELA_GATEWAY_URL", "http://localhost:8402")
 
 
 @pytest.fixture
@@ -18,8 +18,8 @@ def live_client():
 
 
 def pytest_collection_modifyitems(config, items):
-    if os.environ.get("RUSTYCLAW_LIVE_TESTS") != "1":
-        skip = pytest.mark.skip(reason="Set RUSTYCLAW_LIVE_TESTS=1 to run")
+    if os.environ.get("SOLVELA_LIVE_TESTS") != "1":
+        skip = pytest.mark.skip(reason="Set SOLVELA_LIVE_TESTS=1 to run")
         for item in items:
             if "live" in str(item.fspath):
                 item.add_marker(skip)

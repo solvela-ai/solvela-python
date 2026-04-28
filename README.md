@@ -96,7 +96,7 @@ config = (
 pytest tests/unit/ tests/integration/ -v
 
 # Live contract tests (requires running gateway)
-RUSTYCLAW_LIVE_TESTS=1 pytest tests/live/ -v
+SOLVELA_LIVE_TESTS=1 pytest tests/live/ -v
 
 # Linting
 ruff check src/ tests/

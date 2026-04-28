@@ -18,7 +18,7 @@ pytest tests/unit/test_client.py -v
 pytest tests/unit/ -k "test_cache_hit" -v
 
 # Live contract tests (requires running SolvelaRouter gateway)
-RUSTYCLAW_LIVE_TESTS=1 pytest tests/live/ -v
+SOLVELA_LIVE_TESTS=1 pytest tests/live/ -v
 
 # Linting
 ruff check src/ tests/
