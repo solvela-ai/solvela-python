@@ -44,7 +44,11 @@ class Wallet:
             WalletError: If the mnemonic is invalid.
         """
         if not _BIP39.check(phrase):
-            raise WalletError(f"Invalid BIP39 mnemonic: {phrase!r}")
+            # Do NOT include the phrase in the error — it would leak the seed
+            # to any logger, traceback dump, or Sentry event that captures it.
+            raise WalletError(
+                "Invalid BIP39 mnemonic — check word count and spelling"
+            )
         return cls._from_mnemonic_unchecked(phrase)
 
     @classmethod
