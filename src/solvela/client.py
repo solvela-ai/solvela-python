@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from solvela.cache import ResponseCache
 from solvela.config import ClientConfig
+from solvela.constants import SOLANA_NETWORK, USDC_MINT
 from solvela.errors import (
     AmountExceedsMaxError,
     ClientError,
@@ -133,9 +134,16 @@ class SolvelaClient:
         return response
 
     async def chat_stream(self, request: ChatRequest) -> AsyncIterator[ChatChunk]:
-        """Streaming chat with balance guard + session lookup only.
+        """Streaming chat with balance guard + session lookup + payment handshake.
 
         No cache, no quality check for streaming.
+
+        If the gateway responds with 402 on the streaming request, the client
+        performs a non-streaming handshake (POST → 402 → sign → reuse signature)
+        and then opens the streaming connection with the signed
+        ``Payment-Signature`` header. If no signer is configured, a
+        ``PaymentRequiredError`` is raised so callers cannot accidentally
+        bypass payment verification on streaming endpoints.
         """
         model = request.model
 
@@ -166,13 +174,70 @@ class SolvelaClient:
             tool_choice=request.tool_choice,
         )
 
-        async for chunk in self._transport.send_chat_stream(effective_request):
+        # Step 3: Pre-flight payment handshake.
+        # The 402 challenge happens on the initial POST before SSE begins, so
+        # we can probe with a non-streaming request, sign once, and reuse the
+        # resulting signature for the streaming POST. This mirrors the
+        # sign-and-retry flow in `_send_with_payment` but stops short of
+        # consuming the response body.
+        payment_signature = await self._preflight_payment_signature(
+            effective_request
+        )
+
+        async for chunk in self._transport.send_chat_stream(
+            effective_request, payment_signature=payment_signature
+        ):
             yield chunk
 
-        # Step 3: Session update
+        # Step 4: Session update
         if self._session_store is not None and session_id is not None:
             request_hash = ResponseCache.cache_key(model, request.messages)
             self._session_store.record_request(session_id, request_hash)
+
+    async def _preflight_payment_signature(
+        self, request: ChatRequest
+    ) -> str | None:
+        """Probe the gateway with a non-streaming POST to obtain a payment signature.
+
+        Returns:
+            ``None`` if the gateway does not require payment, otherwise the
+            base64-encoded ``Payment-Signature`` header value to attach to the
+            real streaming request.
+
+        Raises:
+            PaymentRequiredError: payment is required but no signer is configured.
+            ClientError: signing succeeded but the gateway still rejected payment.
+        """
+        # Send a non-streaming probe using the same model + messages so the
+        # gateway computes an identical cost breakdown. We deliberately do not
+        # consume / cache the response body — we only need the 402 metadata.
+        probe = ChatRequest(
+            model=request.model,
+            messages=request.messages,
+            max_tokens=request.max_tokens,
+            temperature=request.temperature,
+            top_p=request.top_p,
+            stream=False,
+            tools=request.tools,
+            tool_choice=request.tool_choice,
+        )
+        result = await self._transport.send_chat(probe)
+        if not isinstance(result, PaymentRequired):
+            return None
+
+        if self._signer is None:
+            raise PaymentRequiredError(result)
+
+        accept = self._find_compatible_scheme(result)
+        self._validate_payment(accept)
+
+        payload = await self._signer.sign_payment(
+            amount_atomic=int(accept.amount),
+            recipient=accept.pay_to,
+            resource=result.resource,
+            accepted=accept,
+        )
+        return base64.b64encode(json.dumps(payload.to_dict()).encode()).decode()
 
     async def models(self) -> list[ModelInfo]:
         """Fetch available models from gateway."""
@@ -254,7 +319,20 @@ class SolvelaClient:
         raise ClientError("No compatible payment scheme found")
 
     def _validate_payment(self, accept: PaymentAccept) -> None:
-        """Validate recipient and amount limits."""
+        """Validate recipient, network, asset, and amount limits before signing.
+
+        Network and asset are checked against expected Solana mainnet + USDC mint
+        constants so a malicious or misconfigured gateway cannot trick the signer
+        into authorizing a transfer on the wrong chain or with the wrong token.
+        """
+        if accept.network != SOLANA_NETWORK:
+            # Avoid echoing the unexpected network back into logs verbatim
+            # beyond what's necessary; repr keeps it bounded.
+            raise ClientError(f"Unexpected payment network: {accept.network!r}")
+        if accept.asset != USDC_MINT:
+            # Don't echo the asset itself — keeps logs free of attacker-controlled
+            # mint addresses that could otherwise be used for log-injection.
+            raise ClientError("Unexpected payment asset")
         if (
             self._config.expected_recipient is not None
             and accept.pay_to != self._config.expected_recipient
@@ -263,13 +341,15 @@ class SolvelaClient:
                 expected=self._config.expected_recipient,
                 actual=accept.pay_to,
             )
-        if self._config.max_payment_amount is not None:
-            amount = int(accept.amount)
-            if amount > self._config.max_payment_amount:
-                raise AmountExceedsMaxError(
-                    amount=amount,
-                    max_amount=self._config.max_payment_amount,
-                )
+        amount = int(accept.amount)
+        if (
+            self._config.max_payment_amount is not None
+            and amount > self._config.max_payment_amount
+        ):
+            raise AmountExceedsMaxError(
+                amount=amount,
+                max_amount=self._config.max_payment_amount,
+            )
 
     async def _query_balance(self, address: str) -> float:
         """Query USDC token balance for an address via RPC."""
