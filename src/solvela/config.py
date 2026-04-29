@@ -1,25 +1,61 @@
 """Solvela client configuration and builder."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from urllib.parse import urlparse
+
+# Local-only hosts that are allowed to use http:// without HTTPS enforcement.
+# Anything else must use https:// so payment-signing traffic and the wallet
+# address are not exposed to passive network observers.
+_LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
+
+# Default cap on a single payment, in USDC atomic units (1 USDC = 1_000_000).
+# Set conservatively so a malicious or misconfigured gateway cannot drain a
+# wallet without the caller explicitly opting in to a higher limit.
+DEFAULT_MAX_PAYMENT_AMOUNT: int = 10_000_000  # 10 USDC
+
+
+def _validate_gateway_url(value: str) -> None:
+    """Reject http:// gateway URLs unless the host is a recognized local loopback."""
+    if not value.startswith("http://"):
+        return
+    host = urlparse(value).hostname or ""
+    if host not in _LOCAL_HOSTS:
+        raise ValueError(
+            "gateway_url must use https:// for non-local endpoints "
+            f"(got http:// host {host!r})"
+        )
 
 
 @dataclass
 class ClientConfig:
-    """Configuration for the Solvela client."""
+    """Configuration for the Solvela client.
 
-    gateway_url: str = "http://localhost:8402"
+    Notes:
+        ``gateway_url`` defaults to the production HTTPS endpoint. Plain
+        ``http://`` URLs are only accepted when pointing at localhost / loopback;
+        any other ``http://`` value will raise ``ValueError`` at construction.
+
+        ``max_payment_amount`` defaults to 10 USDC (10_000_000 atomic units) so
+        a hostile or buggy gateway cannot silently drain the wallet. Callers
+        that genuinely need higher limits must set this explicitly.
+    """
+
+    gateway_url: str = "https://api.solvela.ai"
     rpc_url: str = "https://api.mainnet-beta.solana.com"
     prefer_escrow: bool = False
     timeout: float = 180.0
     expected_recipient: str | None = None
-    max_payment_amount: int | None = None
+    max_payment_amount: int | None = field(default=DEFAULT_MAX_PAYMENT_AMOUNT)
     enable_cache: bool = False
     enable_sessions: bool = False
     session_ttl: float = 1800.0
     enable_quality_check: bool = False
     max_quality_retries: int = 1
     free_fallback_model: str | None = None
+
+    def __post_init__(self) -> None:
+        _validate_gateway_url(self.gateway_url)
 
 
 class ClientBuilder:
@@ -29,6 +65,7 @@ class ClientBuilder:
         self._config = ClientConfig()
 
     def gateway_url(self, value: str) -> ClientBuilder:
+        _validate_gateway_url(value)
         self._config.gateway_url = value
         return self
 
