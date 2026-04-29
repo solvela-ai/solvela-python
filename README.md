@@ -5,7 +5,7 @@ Python SDK for [Solvela](https://github.com/solvela-ai/solvela) — a Solana-nat
 ## Installation
 
 ```bash
-pip install solvela
+pip install solvela-sdk
 ```
 
 For development:
