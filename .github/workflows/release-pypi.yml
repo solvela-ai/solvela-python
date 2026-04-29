@@ -23,7 +23,7 @@ jobs:
     # PyPI is configured with a matching environment name.
     # environment:
     #   name: pypi
-    #   url: https://pypi.org/project/solvela/
+    #   url: https://pypi.org/project/solvela-sdk/
 
     steps:
       - name: Checkout
@@ -83,7 +83,7 @@ jobs:
           gh release create "$TAG" \
             --verify-tag \
             --title "$TAG" \
-            --notes "Published to PyPI: https://pypi.org/project/solvela/${TAG#v}/
+            --notes "Published to PyPI: https://pypi.org/project/solvela-sdk/${TAG#v}/
 
           Install with:
-              pip install solvela==${TAG#v}"
+              pip install solvela-sdk==${TAG#v}"
