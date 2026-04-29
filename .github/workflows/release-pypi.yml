@@ -1,0 +1,89 @@
+name: Release to PyPI
+
+on:
+  push:
+    tags:
+      - "v*"
+
+# Trusted Publishing requires `id-token: write` so the workflow can mint
+# a short-lived OIDC credential for PyPI. `contents: write` is needed for
+# `gh release create` to publish the GitHub Release after a successful
+# upload. No long-lived API token secret is required — auth is handled
+# entirely via OIDC.
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  build-and-publish:
+    name: Build and publish to PyPI
+    runs-on: ubuntu-latest
+    # Optional: pin to a GitHub Environment named `pypi` for an extra
+    # approval gate. Leave commented unless the trusted publisher on
+    # PyPI is configured with a matching environment name.
+    # environment:
+    #   name: pypi
+    #   url: https://pypi.org/project/solvela/
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Verify tag matches pyproject.toml version
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          TAG_VERSION="${TAG#v}"
+          PYPROJECT_VERSION="$(python -c 'import tomllib,sys; print(tomllib.load(open("pyproject.toml","rb"))["project"]["version"])')"
+          echo "Tag version:        $TAG_VERSION"
+          echo "pyproject version:  $PYPROJECT_VERSION"
+          if [ "$TAG_VERSION" != "$PYPROJECT_VERSION" ]; then
+            echo "::error::Tag $TAG does not match pyproject.toml version $PYPROJECT_VERSION"
+            exit 1
+          fi
+
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Verify built distributions
+        run: |
+          ls -la dist/
+          python -m pip install --upgrade twine
+          python -m twine check dist/*
+
+      - name: Publish to PyPI (Trusted Publishing + attestations)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          # No `password:` — OIDC trusted publishing handles auth.
+          # `attestations: true` produces signed PEP 740 attestations
+          # (analogous to npm provenance) and is the modern default.
+          attestations: true
+          # Skip if a release with the same version already exists on
+          # PyPI (e.g. accidental tag re-push). Keeps re-runs idempotent.
+          skip-existing: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF#refs/tags/}"
+          gh release create "$TAG" \
+            --verify-tag \
+            --title "$TAG" \
+            --notes "Published to PyPI: https://pypi.org/project/solvela/${TAG#v}/
+
+          Install with:
+              pip install solvela==${TAG#v}"
