@@ -84,7 +84,27 @@ class KeypairSigner(Signer):
                     },
                 )
                 data = resp.json()
-                blockhash_str = data["result"]["value"]["blockhash"]
+                # Guard against missing keys / RPC error responses. Indexing
+                # blindly with `data["result"]["value"]["blockhash"]` would
+                # raise a `KeyError` whose message embeds the raw RPC payload
+                # — leaking node URLs, internal error messages, etc. into
+                # tracebacks and Sentry events.
+                result = (
+                    data.get("result", {}).get("value", {})
+                    if isinstance(data, dict)
+                    else {}
+                )
+                blockhash_str = (
+                    result.get("blockhash") if isinstance(result, dict) else None
+                )
+                if not blockhash_str:
+                    err = data.get("error") if isinstance(data, dict) else None
+                    err_code = (
+                        err.get("code") if isinstance(err, dict) else None
+                    )
+                    raise SignerError(
+                        f"RPC did not return a blockhash (code: {err_code})"
+                    )
                 blockhash = Blockhash.from_string(blockhash_str)
 
             # Build SPL Token transfer instruction

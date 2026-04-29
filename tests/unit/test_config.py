@@ -1,24 +1,57 @@
 """Tests for ClientConfig and ClientBuilder."""
 from __future__ import annotations
 
-from solvela.config import ClientBuilder, ClientConfig
+import pytest
+
+from solvela.config import DEFAULT_MAX_PAYMENT_AMOUNT, ClientBuilder, ClientConfig
 
 
 class TestClientConfig:
     def test_default_config(self) -> None:
         cfg = ClientConfig()
-        assert cfg.gateway_url == "http://localhost:8402"
+        # Default points at the production HTTPS endpoint — never plain http://.
+        assert cfg.gateway_url == "https://api.solvela.ai"
         assert cfg.rpc_url == "https://api.mainnet-beta.solana.com"
         assert cfg.prefer_escrow is False
         assert cfg.timeout == 180.0
         assert cfg.expected_recipient is None
-        assert cfg.max_payment_amount is None
+        # Conservative default — 10 USDC cap unless caller opts into more.
+        assert cfg.max_payment_amount == DEFAULT_MAX_PAYMENT_AMOUNT
         assert cfg.enable_cache is False
         assert cfg.enable_sessions is False
         assert cfg.session_ttl == 1800.0
         assert cfg.enable_quality_check is False
         assert cfg.max_quality_retries == 1
         assert cfg.free_fallback_model is None
+
+    def test_default_max_payment_amount_value(self) -> None:
+        # 10 USDC in atomic units (USDC has 6 decimals).
+        assert DEFAULT_MAX_PAYMENT_AMOUNT == 10_000_000
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://localhost:8402",
+            "http://127.0.0.1:8402",
+            "http://[::1]:8402",
+            "https://api.solvela.ai",
+            "https://gw.example.com",
+        ],
+    )
+    def test_accepts_safe_gateway_urls(self, url: str) -> None:
+        ClientConfig(gateway_url=url)  # must not raise
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://api.solvela.ai",
+            "http://gw.example.com",
+            "http://10.0.0.1",
+        ],
+    )
+    def test_rejects_plain_http_for_remote_hosts(self, url: str) -> None:
+        with pytest.raises(ValueError, match="https://"):
+            ClientConfig(gateway_url=url)
 
 
 class TestClientBuilder:
@@ -54,3 +87,7 @@ class TestClientBuilder:
 
     def test_builder_default_matches_config_default(self) -> None:
         assert ClientBuilder().build() == ClientConfig()
+
+    def test_builder_rejects_plain_http_for_remote_hosts(self) -> None:
+        with pytest.raises(ValueError, match="https://"):
+            ClientBuilder().gateway_url("http://gw.example.com")

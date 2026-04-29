@@ -24,6 +24,18 @@ class TestWalletCreate:
         with pytest.raises(WalletError):
             Wallet.from_mnemonic("not a valid mnemonic phrase at all")
 
+    def test_from_mnemonic_invalid_does_not_leak_phrase(self) -> None:
+        # Regression guard: invalid mnemonics must NEVER appear in the
+        # exception message — they would otherwise be captured by tracebacks,
+        # logger handlers, and Sentry events as plaintext seed material.
+        bad_phrase = "ribbon canyon extra zebra obvious banana lurid wood ghost orbit melt vast"
+        with pytest.raises(WalletError) as exc_info:
+            Wallet.from_mnemonic(bad_phrase)
+        msg = str(exc_info.value)
+        assert bad_phrase not in msg
+        for word in bad_phrase.split():
+            assert word not in msg
+
 
 class TestWalletKeypairBytes:
     def test_from_keypair_bytes(self) -> None:
