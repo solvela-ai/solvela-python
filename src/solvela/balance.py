@@ -61,7 +61,11 @@ class BalanceMonitor:
             except asyncio.CancelledError:
                 break
             except Exception:
-                logger.debug("Balance fetch failed", exc_info=True)
+                # Surface poll errors at WARNING level. A silent failure (the
+                # previous DEBUG default) would leave last_known_balance() stuck
+                # at None and silently disable any free-fallback-model guard
+                # downstream. Mirrors the warn-on-poll-error fix in the TS SDK.
+                logger.warning("Balance fetch failed", exc_info=True)
 
             try:
                 await asyncio.sleep(self._poll_interval)
