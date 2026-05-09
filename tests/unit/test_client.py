@@ -7,7 +7,7 @@ from solvela.client import SolvelaClient
 from solvela.config import ClientConfig
 from solvela.constants import SOLANA_NETWORK, USDC_MINT
 from solvela.errors import ClientError
-from solvela.types import PaymentAccept
+from solvela.types import CostBreakdown, PaymentAccept, PaymentRequired, Resource
 from solvela.wallet import Wallet
 
 
@@ -291,3 +291,71 @@ class TestQueryBalanceRpcDiscrimination:
         )
         with pytest.raises(ClientError, match="unexpected response shape"):
             await self._client()._query_balance(self._ADDRESS)
+
+
+class TestFindCompatibleScheme:
+    """Scheme preference must honor ``ClientConfig.prefer_escrow``."""
+
+    def _payment_required(self, schemes: list[str]) -> PaymentRequired:
+        return PaymentRequired(
+            x402_version=2,
+            resource=Resource(url="https://gw.test/v1/chat/completions", method="POST"),
+            accepts=[_accept() if s == "exact" else _accept_escrow() for s in schemes],
+            cost_breakdown=CostBreakdown(
+                provider_cost="950",
+                platform_fee="50",
+                total="1000",
+                currency="USDC",
+                fee_percent=5,
+            ),
+            error="Payment required",
+        )
+
+    def test_default_prefers_exact_when_both_offered(self) -> None:
+        client = SolvelaClient(config=ClientConfig())
+        accept = client._find_compatible_scheme(
+            self._payment_required(["escrow", "exact"])
+        )
+        assert accept.scheme == "exact"
+
+    def test_prefer_escrow_selects_escrow_when_both_offered(self) -> None:
+        client = SolvelaClient(config=ClientConfig(prefer_escrow=True))
+        accept = client._find_compatible_scheme(
+            self._payment_required(["exact", "escrow"])
+        )
+        assert accept.scheme == "escrow"
+
+    def test_prefer_escrow_falls_back_to_exact_when_only_exact_offered(self) -> None:
+        client = SolvelaClient(config=ClientConfig(prefer_escrow=True))
+        accept = client._find_compatible_scheme(self._payment_required(["exact"]))
+        assert accept.scheme == "exact"
+
+    def test_no_compatible_scheme_raises(self) -> None:
+        client = SolvelaClient(config=ClientConfig())
+        pr = PaymentRequired(
+            x402_version=2,
+            resource=Resource(url="https://gw.test/v1/chat/completions", method="POST"),
+            accepts=[],
+            cost_breakdown=CostBreakdown(
+                provider_cost="0",
+                platform_fee="0",
+                total="0",
+                currency="USDC",
+                fee_percent=0,
+            ),
+            error="Payment required",
+        )
+        with pytest.raises(ClientError, match="No compatible payment scheme"):
+            client._find_compatible_scheme(pr)
+
+
+def _accept_escrow() -> PaymentAccept:
+    return PaymentAccept(
+        scheme="escrow",
+        network=SOLANA_NETWORK,
+        amount="1000",
+        asset=USDC_MINT,
+        pay_to="RecipientPubkey111111111111111111111111111",
+        max_timeout_seconds=300,
+        escrow_program_id="EscrowProg11111111111111111111111111111111",
+    )

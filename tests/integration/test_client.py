@@ -8,7 +8,7 @@ import pytest
 
 from solvela.client import SolvelaClient
 from solvela.config import ClientConfig
-from solvela.errors import PaymentRequiredError
+from solvela.errors import PaymentRejectedError, PaymentRequiredError
 from solvela.signer import Signer
 from solvela.types import (
     AtomicUsdc,
@@ -227,6 +227,28 @@ async def test_chat_402_signed_then_200_success(httpx_mock) -> None:
     decoded = json.loads(base64.b64decode(sig_b64).decode())
     assert decoded["x402_version"] == 2
     assert decoded["payload"]["transaction"] == "dGVzdC10cmFuc2FjdGlvbg=="
+
+
+@pytest.mark.asyncio
+async def test_chat_402_after_signing_raises_payment_rejected(httpx_mock) -> None:
+    """402 → sign → 402 must raise PaymentRejectedError, not bare ClientError."""
+    httpx_mock.add_response(
+        url=f"{GATEWAY_URL}/v1/chat/completions",
+        json=_payment_required_json(),
+        status_code=402,
+    )
+    httpx_mock.add_response(
+        url=f"{GATEWAY_URL}/v1/chat/completions",
+        json=_payment_required_json(),
+        status_code=402,
+    )
+    config = ClientConfig(gateway_url=GATEWAY_URL, max_payment_amount=None)
+    client = SolvelaClient(config=config, signer=_StubSigner())
+
+    with pytest.raises(PaymentRejectedError):
+        await client.chat(_chat_request())
+
+    assert len(httpx_mock.get_requests()) == 2
 
 
 @pytest.mark.asyncio

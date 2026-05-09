@@ -11,6 +11,7 @@ from solvela.constants import SOLANA_NETWORK, USDC_MINT
 from solvela.errors import (
     AmountExceedsMaxError,
     ClientError,
+    PaymentRejectedError,
     PaymentRequiredError,
     RecipientMismatchError,
 )
@@ -315,17 +316,25 @@ class SolvelaClient:
                 request, payment_signature=sig, extra_headers=extra_headers
             )
             if isinstance(result, PaymentRequired):
-                raise ClientError("Payment rejected after signing")
+                raise PaymentRejectedError("second 402 after signing")
 
         return result
 
     def _find_compatible_scheme(self, pr: PaymentRequired) -> PaymentAccept:
-        """Find first compatible payment scheme (prefer 'exact')."""
+        """Find first compatible payment scheme.
+
+        Preference order is controlled by ``ClientConfig.prefer_escrow``:
+        ``False`` (default) tries ``exact`` first, ``True`` tries ``escrow``
+        first. Whichever is preferred falls back to the other before raising.
+        """
+        primary, fallback = (
+            ("escrow", "exact") if self._config.prefer_escrow else ("exact", "escrow")
+        )
         for accept in pr.accepts:
-            if accept.scheme == "exact":
+            if accept.scheme == primary:
                 return accept
         for accept in pr.accepts:
-            if accept.scheme == "escrow":
+            if accept.scheme == fallback:
                 return accept
         raise ClientError("No compatible payment scheme found")
 
