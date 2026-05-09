@@ -51,16 +51,19 @@ src/solvela/
   constants.py     # Protocol constants (x402 version, USDC mint, network, fee percent)
 ```
 
-### Smart Chat Flow (client.py)
+### Smart Chat Flow
 
-The `SolvelaClient.chat()` method runs a 7-step pipeline:
-1. Balance guard — fallback to free model when USDC balance is zero
-2. Session lookup — derive session from messages, track conversation state
-3. Cache check — after model finalization to prevent cross-model pollution
-4. Send request — with automatic x402 payment signing on 402 responses
-5. Quality check — detect degraded responses, retry if enabled
-6. Cache store
-7. Session update
+`SolvelaClient.chat()` (`client.py:61`) runs 7 steps:
+
+1. **Balance guard** (`client.py:76`) — if `_last_balance == 0` and `free_fallback_model` is set, swap model.
+2. **Session lookup** (`client.py:84`) — `SessionStore.derive_session_id` from messages; `get_or_create` may force a model on third strike.
+3. **Cache check** (`client.py:92`) — keyed on `(model, messages)` *after* model finalization to prevent cross-model pollution.
+4. **Send** (`client.py:110` → `transport.py:39`) — on `402`, `_send_with_payment` picks a scheme, `Signer` builds an SPL transfer tx, retries with the `Payment-Signature` header.
+5. **Quality check** (`client.py:113`) — `check_degraded` runs up to `max_quality_retries`; retries set `X-Solvela-Retry-Reason: degraded`.
+6. **Cache store** (`client.py:124`).
+7. **Session record** (`client.py:128`).
+
+`chat_stream()` (`client.py:135`) runs only steps 1, 2, 4, 7 — no cache, no quality check.
 
 ### Payment Flow (x402 protocol)
 
@@ -70,6 +73,19 @@ The `SolvelaClient.chat()` method runs a 7-step pipeline:
 4. `Signer` builds and signs a Solana SPL Token transfer transaction
 5. Client retries with `Payment-Signature` header (base64-encoded JSON payload)
 6. Gateway verifies payment and returns chat completion
+
+### Where to Look
+
+| Task | File |
+|---|---|
+| Change request flow | `client.py` (`chat`, `chat_stream`, `_send_with_payment`) |
+| Add/change wire fields | `types.py` (+ round-trip in `tests/unit/test_types.py`) |
+| Add a payment scheme or signer | `signer.py` (implement `Signer` ABC) |
+| HTTP behavior or status mapping | `transport.py` |
+| Bump x402 version, USDC mint, fee % | `constants.py` |
+| Add an error type | `errors.py` (re-export from `__init__.py`) |
+| Adjust degraded-response heuristics | `quality.py` |
+| Test against a running gateway | `tests/live/test_live_chat.py` (gated by `SOLVELA_LIVE_TESTS=1`) |
 
 ## Code Conventions
 
