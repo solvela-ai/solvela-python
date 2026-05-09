@@ -96,3 +96,119 @@ class TestValidatePayment:
             assert bogus_mint not in str(exc)
         else:
             pytest.fail("expected ClientError")
+
+
+class TestQueryBalanceRpcDiscrimination:
+    """`_query_balance` must distinguish ATA-not-found from real RPC errors.
+
+    Returning 0.0 on every kind of failure silently trips the balance guard
+    into the free-fallback path on transient infrastructure issues (rate
+    limit, node down, malformed response). Only the explicit "account does
+    not exist" signal — either an error message containing "could not find"
+    / "not found" or a 200 with ``result.value == null`` — should map to 0.
+    """
+
+    _ADDRESS = "Sender1111111111111111111111111111111111111"
+    _RPC_URL = "https://rpc.test.local"
+
+    def _client(self) -> SolvelaClient:
+        return SolvelaClient(config=ClientConfig(rpc_url=self._RPC_URL))
+
+    @pytest.mark.asyncio
+    async def test_zero_balance_for_existing_ata(self, httpx_mock) -> None:  # type: ignore[no-untyped-def]
+        httpx_mock.add_response(
+            url=self._RPC_URL,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "result": {
+                    "context": {"slot": 1},
+                    "value": {
+                        "amount": "0",
+                        "decimals": 6,
+                        "uiAmount": 0.0,
+                        "uiAmountString": "0",
+                    },
+                },
+            },
+        )
+        assert await self._client()._query_balance(self._ADDRESS) == 0.0
+
+    @pytest.mark.asyncio
+    async def test_positive_balance(self, httpx_mock) -> None:  # type: ignore[no-untyped-def]
+        httpx_mock.add_response(
+            url=self._RPC_URL,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "result": {
+                    "context": {"slot": 1},
+                    "value": {
+                        "amount": "5000000",
+                        "decimals": 6,
+                        "uiAmount": 5.0,
+                        "uiAmountString": "5",
+                    },
+                },
+            },
+        )
+        assert await self._client()._query_balance(self._ADDRESS) == 5.0
+
+    @pytest.mark.asyncio
+    async def test_ata_not_found_error_returns_zero(self, httpx_mock) -> None:  # type: ignore[no-untyped-def]
+        httpx_mock.add_response(
+            url=self._RPC_URL,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "error": {
+                    "code": -32602,
+                    "message": "Invalid param: could not find account",
+                },
+            },
+        )
+        assert await self._client()._query_balance(self._ADDRESS) == 0.0
+
+    @pytest.mark.asyncio
+    async def test_ata_null_value_returns_zero(self, httpx_mock) -> None:  # type: ignore[no-untyped-def]
+        # Some providers signal absence with `result.value: null` on 200.
+        httpx_mock.add_response(
+            url=self._RPC_URL,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "result": {"context": {"slot": 1}, "value": None},
+            },
+        )
+        assert await self._client()._query_balance(self._ADDRESS) == 0.0
+
+    @pytest.mark.asyncio
+    async def test_rate_limit_raises_not_zero(self, httpx_mock) -> None:  # type: ignore[no-untyped-def]
+        # 429 must not be silently coerced to "zero balance" — that would
+        # transparently switch the caller to the free-fallback model on a
+        # transient infra issue.
+        httpx_mock.add_response(url=self._RPC_URL, status_code=429, json={})
+        with pytest.raises(ClientError, match="HTTP 429"):
+            await self._client()._query_balance(self._ADDRESS)
+
+    @pytest.mark.asyncio
+    async def test_generic_rpc_error_raises(self, httpx_mock) -> None:  # type: ignore[no-untyped-def]
+        httpx_mock.add_response(
+            url=self._RPC_URL,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "error": {"code": -32000, "message": "Internal error"},
+            },
+        )
+        with pytest.raises(ClientError, match="Internal error"):
+            await self._client()._query_balance(self._ADDRESS)
+
+    @pytest.mark.asyncio
+    async def test_malformed_response_shape_raises(self, httpx_mock) -> None:  # type: ignore[no-untyped-def]
+        httpx_mock.add_response(
+            url=self._RPC_URL,
+            json={"jsonrpc": "2.0", "id": 1, "result": "not-an-object"},
+        )
+        with pytest.raises(ClientError, match="unexpected response shape"):
+            await self._client()._query_balance(self._ADDRESS)

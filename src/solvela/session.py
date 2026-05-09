@@ -72,10 +72,20 @@ class SessionStore:
 
     @staticmethod
     def derive_session_id(messages: list[ChatMessage]) -> str:
-        """Derive session ID from first message content (deterministic)."""
+        """Derive a deterministic session ID from the full message sequence.
+
+        Hashes ``(role, content)`` for every message with explicit field
+        separators, so two conversations that happen to share an opening
+        message (e.g. "Hello") but diverge afterwards land in distinct
+        sessions. This prevents three-strike escalation and request-hash
+        tracking from bleeding across unrelated conversations.
+        """
         h = hashlib.sha256()
-        if messages:
-            h.update((messages[0].content or "").encode())
+        for msg in messages:
+            h.update(msg.role.encode())
+            h.update(b"\x00")
+            h.update((msg.content or "").encode())
+            h.update(b"\x01")
         return h.hexdigest()[:16]
 
 

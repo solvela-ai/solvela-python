@@ -68,6 +68,31 @@ class TestDeriveSessionId:
         id2 = SessionStore.derive_session_id(_msgs("Goodbye"))
         assert id1 != id2
 
+    def test_same_first_message_different_continuation_distinct_ids(self) -> None:
+        """Two conversations sharing only an opening message must hash distinctly.
+
+        The previous implementation hashed messages[0].content alone, so unrelated
+        agents both starting with "Hello" collided into the same session and bled
+        escalation/request-hash state across each other.
+        """
+        id1 = SessionStore.derive_session_id(_msgs("Hello", "How's the weather?"))
+        id2 = SessionStore.derive_session_id(_msgs("Hello", "What's the time?"))
+        assert id1 != id2
+
+    def test_role_changes_session_id(self) -> None:
+        """Same content under a different role must hash distinctly."""
+        from solvela.types import ChatMessage, Role
+
+        as_user = [ChatMessage(role=Role.USER, content="Hello")]
+        as_assistant = [ChatMessage(role=Role.ASSISTANT, content="Hello")]
+        assert SessionStore.derive_session_id(
+            as_user
+        ) != SessionStore.derive_session_id(as_assistant)
+
+    def test_empty_messages_is_stable(self) -> None:
+        """Empty input must still produce a deterministic ID without raising."""
+        assert SessionStore.derive_session_id([]) == SessionStore.derive_session_id([])
+
 
 class TestCleanupExpired:
     def test_cleanup_expired(self) -> None:

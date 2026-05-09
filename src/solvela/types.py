@@ -19,6 +19,11 @@ _KNOWN_TOOL_TYPES: frozenset[str] = frozenset(get_args(ToolType))
 FinishReason = Literal["stop", "length", "tool_calls", "content_filter"]
 _KNOWN_FINISH_REASONS: frozenset[str] = frozenset(get_args(FinishReason))
 
+# x402 schemes recognized by this client. Adding a new scheme requires updating
+# `_find_compatible_scheme` in client.py and the `Scheme` Literal below.
+Scheme = Literal["exact", "escrow"]
+_KNOWN_SCHEMES: frozenset[str] = frozenset(get_args(Scheme))
+
 
 def _validate_tool_type(value: str) -> ToolType:
     if value not in _KNOWN_TOOL_TYPES:
@@ -472,7 +477,7 @@ class Resource:
 class PaymentAccept:
     """An accepted payment scheme."""
 
-    scheme: str
+    scheme: Scheme
     network: str
     amount: str
     asset: str
@@ -495,8 +500,16 @@ class PaymentAccept:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> PaymentAccept:
+        scheme = data["scheme"]
+        if scheme not in _KNOWN_SCHEMES:
+            # Domain-encoded at the type level; an unknown scheme means either
+            # a malformed gateway response or a protocol upgrade the SDK has
+            # not been taught yet. Raising here forces the caller to handle
+            # the mismatch explicitly rather than silently mis-branching at
+            # the scheme-matching call site.
+            raise ValueError(f"Unknown payment scheme: {scheme!r}")
         return cls(
-            scheme=data["scheme"],
+            scheme=scheme,
             network=data["network"],
             amount=data["amount"],
             asset=data["asset"],

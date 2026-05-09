@@ -15,14 +15,20 @@ _LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 DEFAULT_MAX_PAYMENT_AMOUNT: int = 10_000_000  # 10 USDC
 
 
-def _validate_gateway_url(value: str) -> None:
-    """Reject http:// gateway URLs unless the host is a recognized local loopback."""
+def _validate_https_url(label: str, value: str) -> None:
+    """Reject http:// URLs unless the host is a recognized local loopback.
+
+    Applied to both ``gateway_url`` and ``rpc_url`` so that payment-signing
+    traffic, the wallet address, and Solana blockhash fetches are not exposed
+    to passive observers or on-path attackers who could tamper with a returned
+    blockhash and redirect the signed transaction.
+    """
     if not value.startswith("http://"):
         return
     host = urlparse(value).hostname or ""
     if host not in _LOCAL_HOSTS:
         raise ValueError(
-            "gateway_url must use https:// for non-local endpoints "
+            f"{label} must use https:// for non-local endpoints "
             f"(got http:// host {host!r})"
         )
 
@@ -55,7 +61,8 @@ class ClientConfig:
     free_fallback_model: str | None = None
 
     def __post_init__(self) -> None:
-        _validate_gateway_url(self.gateway_url)
+        _validate_https_url("gateway_url", self.gateway_url)
+        _validate_https_url("rpc_url", self.rpc_url)
 
 
 class ClientBuilder:
@@ -65,11 +72,12 @@ class ClientBuilder:
         self._config = ClientConfig()
 
     def gateway_url(self, value: str) -> ClientBuilder:
-        _validate_gateway_url(value)
+        _validate_https_url("gateway_url", value)
         self._config.gateway_url = value
         return self
 
     def rpc_url(self, value: str) -> ClientBuilder:
+        _validate_https_url("rpc_url", value)
         self._config.rpc_url = value
         return self
 
