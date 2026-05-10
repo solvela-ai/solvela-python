@@ -1,6 +1,7 @@
 """Integration tests for SolvelaClient — HTTP mocking via pytest-httpx."""
 from __future__ import annotations
 
+import base64
 import json
 
 import pytest
@@ -8,7 +9,17 @@ import pytest
 from solvela.client import SolvelaClient
 from solvela.config import ClientConfig
 from solvela.errors import PaymentRequiredError
-from solvela.types import ChatMessage, ChatRequest, ChatResponse, Role
+from solvela.signer import Signer
+from solvela.types import (
+    ChatMessage,
+    ChatRequest,
+    ChatResponse,
+    PaymentAccept,
+    PaymentPayload,
+    Resource,
+    Role,
+    SolanaPayload,
+)
 
 GATEWAY_URL = "https://gw.test.local"
 
@@ -156,6 +167,119 @@ async def test_chat_402_without_signer(httpx_mock) -> None:
 
     with pytest.raises(PaymentRequiredError):
         await client.chat(_chat_request())
+
+
+class _StubSigner(Signer):
+    """Test-only signer that returns a canned PaymentPayload without RPC calls."""
+
+    async def sign_payment(
+        self,
+        amount_atomic: int,
+        recipient: str,
+        resource: Resource,
+        accepted: PaymentAccept,
+    ) -> PaymentPayload:
+        return PaymentPayload(
+            x402_version=2,
+            resource=resource,
+            accepted=accepted,
+            payload=SolanaPayload(transaction="dGVzdC10cmFuc2FjdGlvbg=="),
+        )
+
+
+@pytest.mark.asyncio
+async def test_chat_402_signed_then_200_success(httpx_mock) -> None:
+    """End-to-end 402 → sign → 200 happy path with stub signer.
+
+    The audit highlighted that the success branch of `_send_with_payment`
+    had no integration coverage. A regression in base64 encoding, header
+    name, or PaymentPayload.to_dict() field ordering would pass every
+    other test. This exercises the full handshake and asserts the second
+    request carries a Payment-Signature header derived from the stub.
+    """
+    httpx_mock.add_response(
+        url=f"{GATEWAY_URL}/v1/chat/completions",
+        json=_payment_required_json(),
+        status_code=402,
+    )
+    httpx_mock.add_response(
+        url=f"{GATEWAY_URL}/v1/chat/completions",
+        json=_chat_response_json(),
+        status_code=200,
+    )
+    config = ClientConfig(gateway_url=GATEWAY_URL, max_payment_amount=None)
+    client = SolvelaClient(config=config, signer=_StubSigner())
+
+    response = await client.chat(_chat_request())
+
+    assert isinstance(response, ChatResponse)
+    assert response.id == "chatcmpl-1"
+
+    # The second request must carry a Payment-Signature header that base64-
+    # decodes back into the canned PaymentPayload — this catches header-name
+    # typos, missing payload fields, and wire-encoding regressions.
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 2
+    assert "Payment-Signature" not in requests[0].headers
+    sig_b64 = requests[1].headers.get("Payment-Signature")
+    assert sig_b64 is not None
+    decoded = json.loads(base64.b64decode(sig_b64).decode())
+    assert decoded["x402_version"] == 2
+    assert decoded["payload"]["transaction"] == "dGVzdC10cmFuc2FjdGlvbg=="
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_preflight_402_then_sse(httpx_mock) -> None:
+    """chat_stream preflight handshake: 402 probe → sign → SSE stream.
+
+    Exercises the streaming code path's preflight: a non-streaming probe
+    returns 402, the stub signer produces a payload, and the subsequent
+    streaming request carries the resulting Payment-Signature header. The
+    SSE body emits two chunks plus the [DONE] terminator.
+    """
+    # Probe: non-streaming POST returning 402.
+    httpx_mock.add_response(
+        url=f"{GATEWAY_URL}/v1/chat/completions",
+        json=_payment_required_json(),
+        status_code=402,
+    )
+    # Streaming POST: SSE body. pytest-httpx routes by URL; the ordering of
+    # add_response calls matches request ordering.
+    sse_body = (
+        b'data: {"id":"c1","object":"chat.completion.chunk","created":1,'
+        b'"model":"gpt-4o","choices":[{"index":0,"delta":{"role":"assistant",'
+        b'"content":"Hi"},"finish_reason":null}]}\n\n'
+        b'data: {"id":"c1","object":"chat.completion.chunk","created":1,'
+        b'"model":"gpt-4o","choices":[{"index":0,"delta":{"content":" there"},'
+        b'"finish_reason":"stop"}]}\n\n'
+        b"data: [DONE]\n\n"
+    )
+    httpx_mock.add_response(
+        url=f"{GATEWAY_URL}/v1/chat/completions",
+        status_code=200,
+        content=sse_body,
+        headers={"content-type": "text/event-stream"},
+    )
+
+    config = ClientConfig(gateway_url=GATEWAY_URL, max_payment_amount=None)
+    client = SolvelaClient(config=config, signer=_StubSigner())
+
+    chunks = [c async for c in client.chat_stream(_chat_request())]
+
+    assert len(chunks) == 2
+    assert chunks[0].choices[0].delta.content == "Hi"
+    assert chunks[1].choices[0].finish_reason == "stop"
+
+    requests = httpx_mock.get_requests()
+    assert len(requests) == 2
+    # The probe is non-streaming and unsigned; the streaming request carries
+    # the signature derived from the probe's 402.
+    probe_body = json.loads(requests[0].content)
+    assert probe_body["stream"] is False
+    assert "Payment-Signature" not in requests[0].headers
+    stream_body = json.loads(requests[1].content)
+    assert stream_body["stream"] is True
+    assert "Payment-Signature" in requests[1].headers
 
 
 @pytest.mark.asyncio

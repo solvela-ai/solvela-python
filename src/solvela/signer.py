@@ -83,7 +83,23 @@ class KeypairSigner(Signer):
                         "params": [{"commitment": "finalized"}],
                     },
                 )
-                data = resp.json()
+                # Surface HTTP-level failures (rate limit, 5xx, etc.) before
+                # attempting JSON decode. An HTML/text body from a 429 or
+                # gateway error would otherwise raise `json.JSONDecodeError`
+                # uncontextualised and embed the raw response in the
+                # traceback.
+                if resp.status_code != 200:
+                    raise SignerError(
+                        f"Blockhash RPC HTTP {resp.status_code}"
+                    )
+                import json
+
+                try:
+                    data = resp.json()
+                except json.JSONDecodeError as err:
+                    raise SignerError(
+                        "Blockhash RPC: malformed JSON body"
+                    ) from err
                 # Guard against missing keys / RPC error responses. Indexing
                 # blindly with `data["result"]["value"]["blockhash"]` would
                 # raise a `KeyError` whose message embeds the raw RPC payload
@@ -98,9 +114,9 @@ class KeypairSigner(Signer):
                     result.get("blockhash") if isinstance(result, dict) else None
                 )
                 if not blockhash_str:
-                    err = data.get("error") if isinstance(data, dict) else None
+                    rpc_err = data.get("error") if isinstance(data, dict) else None
                     err_code = (
-                        err.get("code") if isinstance(err, dict) else None
+                        rpc_err.get("code") if isinstance(rpc_err, dict) else None
                     )
                     raise SignerError(
                         f"RPC did not return a blockhash (code: {err_code})"

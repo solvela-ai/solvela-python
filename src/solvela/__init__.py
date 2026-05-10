@@ -16,6 +16,19 @@ from solvela.errors import (
     WalletError,
 )
 from solvela.signer import KeypairSigner, Signer
+from solvela.types import (
+    ChatChunk,
+    ChatMessage,
+    ChatRequest,
+    ChatResponse,
+    FinishReason,
+    ModelInfo,
+    PaymentAccept,
+    PaymentPayload,
+    PaymentRequired,
+    Role,
+    ToolType,
+)
 from solvela.wallet import Wallet
 
 __all__ = [
@@ -36,4 +49,17 @@ __all__ = [
     "KeypairSigner",
     "Signer",
     "Wallet",
+    # Wire types — exposed so callers can annotate their own code without
+    # reaching into ``solvela.types``.
+    "ChatChunk",
+    "ChatMessage",
+    "ChatRequest",
+    "ChatResponse",
+    "FinishReason",
+    "ModelInfo",
+    "PaymentAccept",
+    "PaymentPayload",
+    "PaymentRequired",
+    "Role",
+    "ToolType",
 ]

@@ -13,11 +13,24 @@ class DegradedReason(str, Enum):
     TRUNCATED_MID_WORD = "truncated_mid_word"
 
 
+# Phrases that strongly suggest a safety-refusal non-answer from a gated
+# model. The list is intentionally narrow — broader matches like "i cannot"
+# would flag legitimate prose ("I cannot stress this enough...") and trigger
+# paid retries on perfectly good responses. Treat additions cautiously.
 _ERROR_PHRASES = [
     "i cannot",
     "as an ai",
     "i'm sorry, but i",
 ]
+
+# Mid-word truncation heuristic threshold. The earlier rule (len > 100 and
+# last char alphanumeric) misfired on any normal response ending in a digit
+# ("...launched in 2024") or a proper-noun capital ("...invented by GPT"),
+# triggering a paid retry on a perfectly good completion. The current rule
+# requires the last character to be a lowercase letter — the dominant
+# signature of a max_tokens cut — and pushes the length floor up so
+# accidental hits on short answers are implausible.
+_TRUNCATION_MIN_LEN = 250
 
 
 def check_degraded(content: str) -> DegradedReason | None:
@@ -42,8 +55,10 @@ def check_degraded(content: str) -> DegradedReason | None:
             if trigram_counts[trigram] >= 5:
                 return DegradedReason.REPETITIVE_LOOP
 
-    # 4. Truncated mid-word (>100 chars, ends with alphanumeric)
-    if len(content) > 100 and content[-1].isalnum():
+    # 4. Truncated mid-word: long response ending with a lowercase letter
+    # (strong signal of a max_tokens cut, e.g. "the result is appro").
+    # Digits, capitals, and punctuation no longer trigger.
+    if len(content) > _TRUNCATION_MIN_LEN and content[-1].islower():
         return DegradedReason.TRUNCATED_MID_WORD
 
     return None
