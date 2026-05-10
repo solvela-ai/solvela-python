@@ -11,6 +11,7 @@ from solvela.config import ClientConfig
 from solvela.errors import PaymentRequiredError
 from solvela.signer import Signer
 from solvela.types import (
+    AtomicUsdc,
     ChatMessage,
     ChatRequest,
     ChatResponse,
@@ -174,7 +175,7 @@ class _StubSigner(Signer):
 
     async def sign_payment(
         self,
-        amount_atomic: int,
+        amount_atomic: AtomicUsdc,
         recipient: str,
         resource: Resource,
         accepted: PaymentAccept,

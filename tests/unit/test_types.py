@@ -453,7 +453,10 @@ class TestAtomicUsdc:
         # reaching into ``solvela.types``.
         import solvela
 
-        assert solvela.AtomicUsdc is not None
+        # Assert the export is callable and round-trips a value, not just
+        # truthy — `is not None` would pass even on a stale export shadow.
+        assert callable(solvela.AtomicUsdc)
+        assert solvela.AtomicUsdc(1) == 1
         assert "AtomicUsdc" in solvela.__all__
 
 

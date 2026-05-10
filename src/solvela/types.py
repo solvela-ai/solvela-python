@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal, NewType, get_args
 
+from solvela.errors import ClientError
+
 # USDC amounts in atomic units (1 USDC = 1_000_000 atomic). NewType is a
 # zero-cost runtime wrapper but a real distinction at the type level — mypy
 # treats AtomicUsdc and int as incompatible, so an internal site that
@@ -14,8 +16,6 @@ from typing import Any, Literal, NewType, get_args
 # the explicit ``AtomicUsdc(...)`` cast is flagged before it reaches the
 # signer or an error message.
 AtomicUsdc = NewType("AtomicUsdc", int)
-
-from solvela.errors import ClientError
 
 # OpenAI tool-call domain. Only "function" is defined today; broaden the
 # Literal here when the upstream protocol grows.
