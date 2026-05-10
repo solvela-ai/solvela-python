@@ -1,6 +1,8 @@
 """Tests for solvela.types and solvela.constants."""
 from __future__ import annotations
 
+import pytest
+
 from solvela.constants import (
     MAX_TIMEOUT_SECONDS,
     PLATFORM_FEE_PERCENT,
@@ -336,3 +338,77 @@ class TestCacheKey:
             messages=[ChatMessage(role=Role.USER, content="hello")],
         )
         assert req1.cache_key() != req2.cache_key()
+
+
+# --- Literal validation (I8) ------------------------------------------------
+
+
+class TestToolCallTypeValidation:
+    """`ToolCall.type` is `Literal["function"]` — wire validation enforces it."""
+
+    def _data(self, type_value: str) -> dict[str, object]:
+        return {
+            "id": "call_1",
+            "type": type_value,
+            "function": {"name": "get_weather", "arguments": "{}"},
+        }
+
+    def test_accepts_function_type(self) -> None:
+        from solvela.types import ToolCall
+
+        call = ToolCall.from_dict(self._data("function"))
+        assert call.type == "function"
+
+    def test_rejects_unknown_type(self) -> None:
+        from solvela.types import ToolCall
+
+        with pytest.raises(ValueError, match="Unknown tool type"):
+            ToolCall.from_dict(self._data("magic"))
+
+
+class TestToolCallDeltaTypeValidation:
+    """Streaming partial of ToolCall must enforce the same Literal as ToolCall."""
+
+    def test_accepts_none(self) -> None:
+        from solvela.types import ToolCallDelta
+
+        delta = ToolCallDelta.from_dict({"index": 0})
+        assert delta.type is None
+
+    def test_accepts_function_type(self) -> None:
+        from solvela.types import ToolCallDelta
+
+        delta = ToolCallDelta.from_dict({"index": 0, "type": "function"})
+        assert delta.type == "function"
+
+    def test_rejects_unknown_type(self) -> None:
+        from solvela.types import ToolCallDelta
+
+        with pytest.raises(ValueError, match="Unknown tool type"):
+            ToolCallDelta.from_dict({"index": 0, "type": "magic"})
+
+
+class TestFinishReasonValidation:
+    """`finish_reason` is the closed Literal stop|length|tool_calls|content_filter."""
+
+    def _choice(self, finish_reason: str | None) -> dict[str, object]:
+        return {
+            "index": 0,
+            "message": {"role": "assistant", "content": "ok"},
+            "finish_reason": finish_reason,
+        }
+
+    @pytest.mark.parametrize(
+        "reason", ["stop", "length", "tool_calls", "content_filter", None]
+    )
+    def test_accepts_known_reasons(self, reason: str | None) -> None:
+        from solvela.types import ChatChoice
+
+        choice = ChatChoice.from_dict(self._choice(reason))
+        assert choice.finish_reason == reason
+
+    def test_rejects_unknown_reason(self) -> None:
+        from solvela.types import ChatChoice
+
+        with pytest.raises(ValueError, match="Unknown finish_reason"):
+            ChatChoice.from_dict(self._choice("function_call"))

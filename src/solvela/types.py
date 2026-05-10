@@ -5,7 +5,39 @@ import hashlib
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Any, Literal, get_args
+
+# OpenAI tool-call domain. Only "function" is defined today; broaden the
+# Literal here when the upstream protocol grows.
+ToolType = Literal["function"]
+_KNOWN_TOOL_TYPES: frozenset[str] = frozenset(get_args(ToolType))
+
+# OpenAI finish-reason domain. The set is closed by the OpenAI spec
+# (stop/length/tool_calls/content_filter); validating here surfaces an
+# unmodeled extension instead of silently propagating an unknown string
+# through the choice handler.
+FinishReason = Literal["stop", "length", "tool_calls", "content_filter"]
+_KNOWN_FINISH_REASONS: frozenset[str] = frozenset(get_args(FinishReason))
+
+
+def _validate_tool_type(value: str) -> ToolType:
+    if value not in _KNOWN_TOOL_TYPES:
+        raise ValueError(f"Unknown tool type: {value!r}")
+    return value  # type: ignore[return-value]
+
+
+def _validate_optional_tool_type(value: str | None) -> ToolType | None:
+    if value is None:
+        return None
+    return _validate_tool_type(value)
+
+
+def _validate_finish_reason(value: str | None) -> FinishReason | None:
+    if value is None:
+        return None
+    if value not in _KNOWN_FINISH_REASONS:
+        raise ValueError(f"Unknown finish_reason: {value!r}")
+    return value  # type: ignore[return-value]
 
 
 class Role(str, Enum):
@@ -63,7 +95,7 @@ class ToolCall:
     """A tool call returned by the model."""
 
     id: str
-    type: str
+    type: ToolType
     function: FunctionCall
 
     def to_dict(self) -> dict[str, Any]:
@@ -73,7 +105,7 @@ class ToolCall:
     def from_dict(cls, data: dict[str, Any]) -> ToolCall:
         return cls(
             id=data["id"],
-            type=data["type"],
+            type=_validate_tool_type(data["type"]),
             function=FunctionCall.from_dict(data["function"]),
         )
 
@@ -103,7 +135,7 @@ class ToolCallDelta:
         return cls(
             index=data["index"],
             id=data.get("id"),
-            type=data.get("type"),
+            type=_validate_optional_tool_type(data.get("type")),
             function=FunctionCallDelta.from_dict(fn) if fn else None,
         )
 
@@ -137,7 +169,7 @@ class FunctionDefinitionInner:
 class ToolDefinition:
     """Tool definition for function calling."""
 
-    type: str
+    type: ToolType
     function: FunctionDefinitionInner
 
     def to_dict(self) -> dict[str, Any]:
@@ -146,7 +178,7 @@ class ToolDefinition:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ToolDefinition:
         return cls(
-            type=data["type"],
+            type=_validate_tool_type(data["type"]),
             function=FunctionDefinitionInner.from_dict(data["function"]),
         )
 
@@ -277,7 +309,7 @@ class ChatChoice:
 
     index: int
     message: ChatMessage
-    finish_reason: str | None = None
+    finish_reason: FinishReason | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"index": self.index, "message": self.message.to_dict()}
@@ -290,7 +322,7 @@ class ChatChoice:
         return cls(
             index=data["index"],
             message=ChatMessage.from_dict(data["message"]),
-            finish_reason=data.get("finish_reason"),
+            finish_reason=_validate_finish_reason(data.get("finish_reason")),
         )
 
 
@@ -369,7 +401,7 @@ class ChatChunkChoice:
 
     index: int
     delta: ChatDelta
-    finish_reason: str | None = None
+    finish_reason: FinishReason | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {"index": self.index, "delta": self.delta.to_dict()}
@@ -382,7 +414,7 @@ class ChatChunkChoice:
         return cls(
             index=data["index"],
             delta=ChatDelta.from_dict(data["delta"]),
-            finish_reason=data.get("finish_reason"),
+            finish_reason=_validate_finish_reason(data.get("finish_reason")),
         )
 
 

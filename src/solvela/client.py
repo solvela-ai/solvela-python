@@ -207,6 +207,16 @@ class SolvelaClient:
         Raises:
             PaymentRequiredError: payment is required but no signer is configured.
             ClientError: signing succeeded but the gateway still rejected payment.
+
+        Note:
+            This implementation assumes the gateway always returns 402 before
+            fulfilling a non-signed request. If the gateway ever fulfills the
+            probe instead of challenging it (e.g., free first-turn quota,
+            cached completion) the caller silently pays for a response that is
+            then discarded — the probe body is not consumed or cached. The
+            proper long-term fix is a dedicated non-billing probe endpoint;
+            until then the gateway must guarantee the always-402-pre-signature
+            contract. Tracked in the project issue tracker.
         """
         # Send a non-streaming probe using the same model + messages so the
         # gateway computes an identical cost breakdown. We deliberately do not
