@@ -12,6 +12,7 @@ from solvela.constants import (
     USDC_MINT,
     X402_VERSION,
 )
+from solvela.errors import ClientError
 from solvela.types import (
     ChatChunk,
     ChatMessage,
@@ -269,8 +270,17 @@ class TestPaymentAcceptScheme:
         # An unknown wire scheme means either a malformed gateway response or
         # a protocol upgrade the SDK has not been taught yet — either way we
         # would rather fail loudly than silently mis-branch in scheme matching.
-        with pytest.raises(ValueError, match="Unknown payment scheme"):
+        with pytest.raises(ClientError, match="Unknown payment scheme"):
             PaymentAccept.from_dict(self._accept_data("instant"))
+
+    def test_scheme_alias_exposed_from_package(self) -> None:
+        # Consumers writing scheme-aware callbacks need to annotate against
+        # the same alias the SDK uses internally — without reaching into
+        # solvela.types directly.
+        import solvela
+
+        assert "Scheme" in solvela.__all__
+        assert solvela.Scheme is not None  # type alias is importable
 
 
 # --- PaymentPayload ---

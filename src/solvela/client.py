@@ -409,12 +409,19 @@ class SolvelaClient:
                 # zero balance. Every other RPC error must surface so the
                 # caller (or balance poller) does not silently switch to the
                 # free-fallback model on a transient infrastructure issue.
+                #
+                # Match the canonical Solana validator phrase ("could not find
+                # account") rather than the broad "not found" substring — the
+                # latter also matches "Method not found" (-32601, misconfigured
+                # endpoint) and "Block not found"/"Slot not found" (transient
+                # node sync), neither of which means the balance is zero.
                 msg = (
                     rpc_err.get("message", "")
                     if isinstance(rpc_err, dict)
                     else str(rpc_err)
                 )
-                if "could not find" in msg.lower() or "not found" in msg.lower():
+                msg_lower = msg.lower()
+                if "could not find account" in msg_lower or "account not found" in msg_lower:
                     return 0.0
                 raise ClientError(f"USDC balance RPC error: {msg}")
 

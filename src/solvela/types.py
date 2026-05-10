@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Literal, get_args
 
+from solvela.errors import ClientError
+
 # OpenAI tool-call domain. Only "function" is defined today; broaden the
 # Literal here when the upstream protocol grows.
 ToolType = Literal["function"]
@@ -507,7 +509,11 @@ class PaymentAccept:
             # not been taught yet. Raising here forces the caller to handle
             # the mismatch explicitly rather than silently mis-branching at
             # the scheme-matching call site.
-            raise ValueError(f"Unknown payment scheme: {scheme!r}")
+            #
+            # ClientError (not ValueError) so the wire-decoding failure stays
+            # inside the SDK's typed error hierarchy and is caught by callers
+            # using `except ClientError`.
+            raise ClientError(f"Unknown payment scheme: {scheme!r}")
         return cls(
             scheme=scheme,
             network=data["network"],

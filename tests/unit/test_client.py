@@ -104,8 +104,11 @@ class TestQueryBalanceRpcDiscrimination:
     Returning 0.0 on every kind of failure silently trips the balance guard
     into the free-fallback path on transient infrastructure issues (rate
     limit, node down, malformed response). Only the explicit "account does
-    not exist" signal — either an error message containing "could not find"
-    / "not found" or a 200 with ``result.value == null`` — should map to 0.
+    not exist" signal — an error message matching the canonical Solana phrase
+    ``"could not find account"`` (or ``"account not found"``) or a 200 with
+    ``result.value == null`` — should map to 0. The broader ``"not found"``
+    substring also matches transient failures like ``"Method not found"`` and
+    ``"Block not found"`` and must NOT be treated as zero balance.
     """
 
     _ADDRESS = "Sender1111111111111111111111111111111111111"
@@ -209,6 +212,59 @@ class TestQueryBalanceRpcDiscrimination:
         httpx_mock.add_response(
             url=self._RPC_URL,
             json={"jsonrpc": "2.0", "id": 1, "result": "not-an-object"},
+        )
+        with pytest.raises(ClientError, match="unexpected response shape"):
+            await self._client()._query_balance(self._ADDRESS)
+
+    @pytest.mark.asyncio
+    async def test_method_not_found_does_not_silently_zero(self, httpx_mock) -> None:  # type: ignore[no-untyped-def]
+        # Misconfigured RPC endpoint that doesn't expose getTokenAccountBalance
+        # returns "Method not found" — must NOT match the ATA-absent path.
+        httpx_mock.add_response(
+            url=self._RPC_URL,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "error": {"code": -32601, "message": "Method not found"},
+            },
+        )
+        with pytest.raises(ClientError, match="Method not found"):
+            await self._client()._query_balance(self._ADDRESS)
+
+    @pytest.mark.asyncio
+    async def test_block_not_found_does_not_silently_zero(self, httpx_mock) -> None:  # type: ignore[no-untyped-def]
+        # Transient node sync error — same risk: "not found" substring would
+        # have falsely matched and silently routed to free-fallback.
+        httpx_mock.add_response(
+            url=self._RPC_URL,
+            json={
+                "jsonrpc": "2.0",
+                "id": 1,
+                "error": {"code": -32004, "message": "Block not found"},
+            },
+        )
+        with pytest.raises(ClientError, match="Block not found"):
+            await self._client()._query_balance(self._ADDRESS)
+
+    @pytest.mark.asyncio
+    async def test_scalar_error_value_raises(self, httpx_mock) -> None:  # type: ignore[no-untyped-def]
+        # Some non-canonical RPC implementations encode `error` as a string
+        # rather than a dict. The discriminator must still raise rather than
+        # let it fall through into the result-extraction branch.
+        httpx_mock.add_response(
+            url=self._RPC_URL,
+            json={"jsonrpc": "2.0", "id": 1, "error": "rate limited"},
+        )
+        with pytest.raises(ClientError, match="rate limited"):
+            await self._client()._query_balance(self._ADDRESS)
+
+    @pytest.mark.asyncio
+    async def test_missing_result_key_raises(self, httpx_mock) -> None:  # type: ignore[no-untyped-def]
+        # 200 with neither `error` nor `result` — pure KeyError path, distinct
+        # from the `result: "not-an-object"` TypeError case.
+        httpx_mock.add_response(
+            url=self._RPC_URL,
+            json={"jsonrpc": "2.0", "id": 1},
         )
         with pytest.raises(ClientError, match="unexpected response shape"):
             await self._client()._query_balance(self._ADDRESS)

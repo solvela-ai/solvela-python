@@ -4,6 +4,7 @@ from __future__ import annotations
 import pytest
 
 from solvela.config import DEFAULT_MAX_PAYMENT_AMOUNT, ClientBuilder, ClientConfig
+from solvela.errors import ClientError
 
 
 class TestClientConfig:
@@ -50,7 +51,7 @@ class TestClientConfig:
         ],
     )
     def test_rejects_plain_http_for_remote_hosts(self, url: str) -> None:
-        with pytest.raises(ValueError, match="https://"):
+        with pytest.raises(ClientError, match="https://"):
             ClientConfig(gateway_url=url)
 
     @pytest.mark.parametrize(
@@ -76,7 +77,7 @@ class TestClientConfig:
     def test_rejects_plain_http_rpc_for_remote_hosts(self, url: str) -> None:
         # Plaintext blockhash fetch lets an on-path attacker tamper with the
         # signed transaction. rpc_url must enforce the same rule as gateway_url.
-        with pytest.raises(ValueError, match="rpc_url"):
+        with pytest.raises(ClientError, match="rpc_url"):
             ClientConfig(rpc_url=url)
 
 
@@ -115,9 +116,9 @@ class TestClientBuilder:
         assert ClientBuilder().build() == ClientConfig()
 
     def test_builder_rejects_plain_http_for_remote_hosts(self) -> None:
-        with pytest.raises(ValueError, match="https://"):
+        with pytest.raises(ClientError, match="https://"):
             ClientBuilder().gateway_url("http://gw.example.com")
 
     def test_builder_rejects_plain_http_rpc_for_remote_hosts(self) -> None:
-        with pytest.raises(ValueError, match="rpc_url"):
+        with pytest.raises(ClientError, match="rpc_url"):
             ClientBuilder().rpc_url("http://rpc.example.com")

@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
+from solvela.errors import ClientError
+
 # Local-only hosts that are allowed to use http:// without HTTPS enforcement.
 # Anything else must use https:// so payment-signing traffic and the wallet
 # address are not exposed to passive network observers.
@@ -22,12 +24,16 @@ def _validate_https_url(label: str, value: str) -> None:
     traffic, the wallet address, and Solana blockhash fetches are not exposed
     to passive observers or on-path attackers who could tamper with a returned
     blockhash and redirect the signed transaction.
+
+    Raises ``ClientError`` (not ``ValueError``) so configuration failures stay
+    inside the SDK's typed error hierarchy and are caught by callers using
+    ``except ClientError`` around construction.
     """
     if not value.startswith("http://"):
         return
     host = urlparse(value).hostname or ""
     if host not in _LOCAL_HOSTS:
-        raise ValueError(
+        raise ClientError(
             f"{label} must use https:// for non-local endpoints "
             f"(got http:// host {host!r})"
         )
