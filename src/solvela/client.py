@@ -299,9 +299,16 @@ class SolvelaClient:
         """Get last polled balance (from BalanceMonitor), or None."""
         return self._last_balance
 
-    def balance_state_setter(self) -> Callable[[float], None]:
-        """Return a callable that sets the balance state. Used by BalanceMonitor."""
-        def set_balance(balance: float) -> None:
+    def balance_state_setter(self) -> Callable[[float | None], None]:
+        """Return a callable that sets the balance state. Used by BalanceMonitor.
+
+        Accepts ``None`` so a polling failure (raising ``ClientError``) can
+        clear the cached balance back to "unknown". Without this, a stale
+        ``0.0`` from a successful pre-outage poll would keep the chat balance
+        guard pinned to the free-fallback model for the entire RPC outage,
+        even after BalanceMonitor itself has moved on.
+        """
+        def set_balance(balance: float | None) -> None:
             self._last_balance = balance
         return set_balance
 
