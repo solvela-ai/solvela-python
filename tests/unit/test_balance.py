@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 
 import pytest
 
@@ -80,6 +81,37 @@ async def test_stop_is_idempotent() -> None:
     await asyncio.sleep(0.02)
     monitor.stop()
     monitor.stop()  # second call should not raise
+
+
+@pytest.mark.asyncio
+async def test_poll_error_emits_warning_and_recovers(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """A failing poll must log at WARNING level and the loop must continue.
+
+    Mirrors the warn-on-poll-error contract in the TS SDK: a silent DEBUG-
+    only failure would leave last_known_balance() stuck at None.
+    """
+    call_count = 0
+
+    async def fetch() -> float:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            raise RuntimeError("network blip")
+        return 42.0
+
+    caplog.set_level(logging.WARNING, logger="solvela.balance")
+    monitor = BalanceMonitor(fetch_balance=fetch, poll_interval=0.01)
+    monitor.start()
+    await asyncio.sleep(0.05)
+    monitor.stop()
+
+    assert monitor.last_known_balance() == 42.0  # recovered after the failed poll
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert any("Balance fetch failed" in r.getMessage() for r in warnings), (
+        f"expected a WARNING containing 'Balance fetch failed'; got {warnings!r}"
+    )
 
 
 @pytest.mark.asyncio
