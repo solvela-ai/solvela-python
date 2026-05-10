@@ -14,6 +14,7 @@ from solvela.errors import (
     WalletError,
 )
 from solvela.types import (
+    AtomicUsdc,
     CostBreakdown,
     PaymentAccept,
     PaymentRequired,
@@ -52,12 +53,12 @@ class TestErrorHierarchy:
 
 class TestInsufficientBalanceError:
     def test_attributes(self) -> None:
-        err = InsufficientBalanceError(have=1000, need=5000)
+        err = InsufficientBalanceError(have=AtomicUsdc(1000), need=AtomicUsdc(5000))
         assert err.have == 1000
         assert err.need == 5000
 
     def test_message(self) -> None:
-        err = InsufficientBalanceError(have=1000, need=5000)
+        err = InsufficientBalanceError(have=AtomicUsdc(1000), need=AtomicUsdc(5000))
         assert "1000" in str(err)
         assert "5000" in str(err)
 
@@ -121,7 +122,7 @@ class TestRecipientMismatchError:
 
 class TestAmountExceedsMaxError:
     def test_attributes(self) -> None:
-        err = AmountExceedsMaxError(amount=100000, max_amount=50000)
+        err = AmountExceedsMaxError(amount=AtomicUsdc(100000), max_amount=AtomicUsdc(50000))
         assert err.amount == 100000
         assert err.max_amount == 50000
         assert "100000" in str(err)

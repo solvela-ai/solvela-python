@@ -18,6 +18,7 @@ from solvela.quality import check_degraded
 from solvela.session import SessionStore
 from solvela.transport import Transport
 from solvela.types import (
+    AtomicUsdc,
     ChatChunk,
     ChatMessage,
     ChatRequest,
@@ -239,10 +240,10 @@ class SolvelaClient:
             raise PaymentRequiredError(result)
 
         accept = self._find_compatible_scheme(result)
-        self._validate_payment(accept)
+        amount = self._validate_payment(accept)
 
         payload = await self._signer.sign_payment(
-            amount_atomic=int(accept.amount),
+            amount_atomic=amount,
             recipient=accept.pay_to,
             resource=result.resource,
             accepted=accept,
@@ -300,10 +301,10 @@ class SolvelaClient:
                 raise PaymentRequiredError(result)
 
             accept = self._find_compatible_scheme(result)
-            self._validate_payment(accept)
+            amount = self._validate_payment(accept)
 
             payload = await self._signer.sign_payment(
-                amount_atomic=int(accept.amount),
+                amount_atomic=amount,
                 recipient=accept.pay_to,
                 resource=result.resource,
                 accepted=accept,
@@ -328,12 +329,15 @@ class SolvelaClient:
                 return accept
         raise ClientError("No compatible payment scheme found")
 
-    def _validate_payment(self, accept: PaymentAccept) -> None:
+    def _validate_payment(self, accept: PaymentAccept) -> AtomicUsdc:
         """Validate recipient, network, asset, and amount limits before signing.
 
         Network and asset are checked against expected Solana mainnet + USDC mint
         constants so a malicious or misconfigured gateway cannot trick the signer
         into authorizing a transfer on the wrong chain or with the wrong token.
+
+        Returns the parsed atomic-unit amount so callers don't re-parse the
+        wire string and can't disagree with what was validated.
         """
         if accept.network != SOLANA_NETWORK:
             # Avoid echoing the unexpected network back into logs verbatim
@@ -351,7 +355,17 @@ class SolvelaClient:
                 expected=self._config.expected_recipient,
                 actual=accept.pay_to,
             )
-        amount = int(accept.amount)
+        # Wire amount is a string; cast at this single boundary so the rest of
+        # the SDK only ever sees a typed AtomicUsdc. A malformed or negative
+        # value must surface as ClientError, not bare ValueError/OverflowError,
+        # to honor the project's typed-error hierarchy.
+        try:
+            parsed = int(accept.amount)
+        except (TypeError, ValueError) as exc:
+            raise ClientError("Gateway returned non-integer payment amount") from exc
+        if parsed < 0:
+            raise ClientError("Gateway returned negative payment amount")
+        amount = AtomicUsdc(parsed)
         if (
             self._config.max_payment_amount is not None
             and amount > self._config.max_payment_amount
@@ -360,6 +374,7 @@ class SolvelaClient:
                 amount=amount,
                 max_amount=self._config.max_payment_amount,
             )
+        return amount
 
     async def _query_balance(self, address: str) -> float:
         """Query USDC token balance for an address via RPC.

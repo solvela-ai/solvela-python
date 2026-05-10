@@ -97,6 +97,29 @@ class TestValidatePayment:
         else:
             pytest.fail("expected ClientError")
 
+    def test_returns_parsed_atomic_amount(self) -> None:
+        # Single-source-of-truth parse: callers receive the validated value
+        # rather than re-parsing the wire string at every sign site.
+        amount = self._client()._validate_payment(_accept(amount="50000"))
+        assert amount == 50000
+        assert isinstance(amount, int)
+
+    def test_rejects_non_integer_amount_as_client_error(self) -> None:
+        # Wire boundary: a malformed amount string must surface as ClientError,
+        # not bare ValueError. A bare exception escapes the typed hierarchy and
+        # bypasses callers' `except ClientError` blocks.
+        client = self._client()
+        for bad in ("", "NaN", "1.5", "0x10"):
+            with pytest.raises(ClientError, match="non-integer payment amount"):
+                client._validate_payment(_accept(amount=bad))
+
+    def test_rejects_negative_amount(self) -> None:
+        # `int("-1")` succeeds and would otherwise sneak past the cap (cap > 0)
+        # straight into solders.to_bytes(8, "little") as an OverflowError.
+        client = self._client()
+        with pytest.raises(ClientError, match="negative payment amount"):
+            client._validate_payment(_accept(amount="-1"))
+
 
 class TestQueryBalanceRpcDiscrimination:
     """`_query_balance` must distinguish ATA-not-found from real RPC errors.

@@ -6,7 +6,13 @@ from typing import TYPE_CHECKING
 
 from solvela.constants import USDC_MINT, X402_VERSION
 from solvela.errors import SignerError
-from solvela.types import PaymentAccept, PaymentPayload, Resource, SolanaPayload
+from solvela.types import (
+    AtomicUsdc,
+    PaymentAccept,
+    PaymentPayload,
+    Resource,
+    SolanaPayload,
+)
 
 if TYPE_CHECKING:
     from solders.pubkey import Pubkey  # type: ignore[import-untyped]
@@ -20,12 +26,22 @@ class Signer(ABC):
     @abstractmethod
     async def sign_payment(
         self,
-        amount_atomic: int,
+        amount_atomic: AtomicUsdc,
         recipient: str,
         resource: Resource,
         accepted: PaymentAccept,
     ) -> PaymentPayload:
-        """Build and sign a payment transaction, return PaymentPayload."""
+        """Build and sign a payment transaction, return PaymentPayload.
+
+        The returned ``PaymentPayload`` is base64-JSON-encoded by the caller
+        and sent to the gateway in the ``Payment-Signature`` header.
+
+        Args:
+            amount_atomic: USDC atomic units (1 USDC = 1_000_000). The typed
+                ``AtomicUsdc`` annotation forces callers to mark the unit
+                conversion explicitly, preventing accidental human-USDC
+                values from reaching the on-chain transfer instruction.
+        """
         ...
 
 
@@ -42,7 +58,7 @@ class KeypairSigner(Signer):
 
     async def sign_payment(
         self,
-        amount_atomic: int,
+        amount_atomic: AtomicUsdc,
         recipient: str,
         resource: Resource,
         accepted: PaymentAccept,

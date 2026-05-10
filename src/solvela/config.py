@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from urllib.parse import urlparse
 
 from solvela.errors import ClientError
+from solvela.types import AtomicUsdc
 
 # Local-only hosts that are allowed to use http:// without HTTPS enforcement.
 # Anything else must use https:// so payment-signing traffic and the wallet
@@ -14,7 +15,7 @@ _LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
 # Default cap on a single payment, in USDC atomic units (1 USDC = 1_000_000).
 # Set conservatively so a malicious or misconfigured gateway cannot drain a
 # wallet without the caller explicitly opting in to a higher limit.
-DEFAULT_MAX_PAYMENT_AMOUNT: int = 10_000_000  # 10 USDC
+DEFAULT_MAX_PAYMENT_AMOUNT: AtomicUsdc = AtomicUsdc(10_000_000)  # 10 USDC
 
 
 def _validate_https_url(label: str, value: str) -> None:
@@ -46,7 +47,7 @@ class ClientConfig:
     Notes:
         ``gateway_url`` defaults to the production HTTPS endpoint. Plain
         ``http://`` URLs are only accepted when pointing at localhost / loopback;
-        any other ``http://`` value will raise ``ValueError`` at construction.
+        any other ``http://`` value will raise ``ClientError`` at construction.
 
         ``max_payment_amount`` defaults to 10 USDC (10_000_000 atomic units) so
         a hostile or buggy gateway cannot silently drain the wallet. Callers
@@ -58,7 +59,7 @@ class ClientConfig:
     prefer_escrow: bool = False
     timeout: float = 180.0
     expected_recipient: str | None = None
-    max_payment_amount: int | None = field(default=DEFAULT_MAX_PAYMENT_AMOUNT)
+    max_payment_amount: AtomicUsdc | None = field(default=DEFAULT_MAX_PAYMENT_AMOUNT)
     enable_cache: bool = False
     enable_sessions: bool = False
     session_ttl: float = 1800.0
@@ -99,7 +100,7 @@ class ClientBuilder:
         self._config.expected_recipient = value
         return self
 
-    def max_payment_amount(self, value: int | None) -> ClientBuilder:
+    def max_payment_amount(self, value: AtomicUsdc | None) -> ClientBuilder:
         self._config.max_payment_amount = value
         return self
 
