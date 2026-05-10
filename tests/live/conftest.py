@@ -1,4 +1,5 @@
 """Live test configuration — skipped unless SOLVELA_LIVE_TESTS=1."""
+
 from __future__ import annotations
 
 import os

@@ -1,4 +1,5 @@
 """Solvela wallet — Solana keypair management."""
+
 from __future__ import annotations
 
 import os
@@ -46,9 +47,7 @@ class Wallet:
         if not _BIP39.check(phrase):
             # Do NOT include the phrase in the error — it would leak the seed
             # to any logger, traceback dump, or Sentry event that captures it.
-            raise WalletError(
-                "Invalid BIP39 mnemonic — check word count and spelling"
-            )
+            raise WalletError("Invalid BIP39 mnemonic — check word count and spelling")
         return cls._from_mnemonic_unchecked(phrase)
 
     @classmethod

@@ -1,4 +1,5 @@
 """Integration tests for SolvelaClient — HTTP mocking via pytest-httpx."""
+
 from __future__ import annotations
 
 import base64

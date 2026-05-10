@@ -1,4 +1,5 @@
 """Solvela client — smart chat flow with payment, caching, sessions, quality checks."""
+
 from __future__ import annotations
 
 import base64
@@ -56,9 +57,7 @@ class SolvelaClient:
             base_url=self._config.gateway_url,
             timeout=self._config.timeout,
         )
-        self._cache: ResponseCache | None = (
-            ResponseCache() if self._config.enable_cache else None
-        )
+        self._cache: ResponseCache | None = ResponseCache() if self._config.enable_cache else None
         self._session_store: SessionStore | None = (
             SessionStore(ttl=self._config.session_ttl) if self._config.enable_sessions else None
         )
@@ -185,9 +184,7 @@ class SolvelaClient:
         # resulting signature for the streaming POST. This mirrors the
         # sign-and-retry flow in `_send_with_payment` but stops short of
         # consuming the response body.
-        payment_signature = await self._preflight_payment_signature(
-            effective_request
-        )
+        payment_signature = await self._preflight_payment_signature(effective_request)
 
         # If we already produced a signature, a 402 on the streaming POST is a
         # *post-signing* rejection — surface it as PaymentRejectedError (typed),
@@ -212,9 +209,7 @@ class SolvelaClient:
             request_hash = ResponseCache.cache_key(model, request.messages)
             self._session_store.record_request(session_id, request_hash)
 
-    async def _preflight_payment_signature(
-        self, request: ChatRequest
-    ) -> str | None:
+    async def _preflight_payment_signature(self, request: ChatRequest) -> str | None:
         """Probe the gateway with a non-streaming POST to obtain a payment signature.
 
         Returns:
@@ -308,8 +303,10 @@ class SolvelaClient:
         guard pinned to the free-fallback model for the entire RPC outage,
         even after BalanceMonitor itself has moved on.
         """
+
         def set_balance(balance: float | None) -> None:
             self._last_balance = balance
+
         return set_balance
 
     # --- Private helpers ---
@@ -368,8 +365,7 @@ class SolvelaClient:
                 # silent fallback. WARNING (not ERROR) because the call still
                 # proceeds successfully on the other scheme.
                 logger.warning(
-                    "Configured prefer_escrow=%s but gateway only offered %r; "
-                    "falling back",
+                    "Configured prefer_escrow=%s but gateway only offered %r; falling back",
                     self._config.prefer_escrow,
                     fallback,
                 )
@@ -413,10 +409,7 @@ class SolvelaClient:
         if parsed < 0:
             raise ClientError("Gateway returned negative payment amount")
         amount = AtomicUsdc(parsed)
-        if (
-            self._config.max_payment_amount is not None
-            and amount > self._config.max_payment_amount
-        ):
+        if self._config.max_payment_amount is not None and amount > self._config.max_payment_amount:
             raise AmountExceedsMaxError(
                 amount=amount,
                 max_amount=self._config.max_payment_amount,
@@ -477,11 +470,7 @@ class SolvelaClient:
                 # latter also matches "Method not found" (-32601, misconfigured
                 # endpoint) and "Block not found"/"Slot not found" (transient
                 # node sync), neither of which means the balance is zero.
-                msg = (
-                    rpc_err.get("message", "")
-                    if isinstance(rpc_err, dict)
-                    else str(rpc_err)
-                )
+                msg = rpc_err.get("message", "") if isinstance(rpc_err, dict) else str(rpc_err)
                 msg_lower = msg.lower()
                 if "could not find account" in msg_lower or "account not found" in msg_lower:
                     return 0.0
@@ -490,9 +479,7 @@ class SolvelaClient:
             try:
                 value = data["result"]["value"]
             except (KeyError, TypeError) as inner_err:
-                raise ClientError(
-                    "USDC balance RPC: unexpected response shape"
-                ) from inner_err
+                raise ClientError("USDC balance RPC: unexpected response shape") from inner_err
             if value is None:
                 # Some RPC providers return `result.value = null` instead of
                 # an explicit error when the ATA is absent.

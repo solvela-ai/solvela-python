@@ -1,4 +1,5 @@
 """Unit tests for BalanceMonitor — polling, callbacks, stop idempotency."""
+
 from __future__ import annotations
 
 import asyncio
@@ -31,6 +32,7 @@ async def test_balance_monitor_polls() -> None:
 @pytest.mark.asyncio
 async def test_balance_monitor_updates_state() -> None:
     """last_known_balance() reflects the polled value."""
+
     async def fetch() -> float:
         return 42.5
 
@@ -75,6 +77,7 @@ async def test_low_balance_callback_fires_on_transition() -> None:
 @pytest.mark.asyncio
 async def test_stop_is_idempotent() -> None:
     """Calling stop() twice doesn't raise."""
+
     async def fetch() -> float:
         return 100.0
 
@@ -145,9 +148,7 @@ async def test_client_error_resets_state_to_none(
 
     # First poll set it to 0.0; subsequent ClientError must clear it to None.
     assert monitor.last_known_balance() is None
-    assert any(
-        "RPC error" in r.getMessage() for r in caplog.records
-    )
+    assert any("RPC error" in r.getMessage() for r in caplog.records)
 
 
 @pytest.mark.asyncio
@@ -217,9 +218,7 @@ async def test_on_balance_change_callback_failure_does_not_kill_loop(
     monitor.stop()
 
     assert call_count >= 2  # loop kept running despite listener raising
-    assert any(
-        "on_balance_change" in r.getMessage() for r in caplog.records
-    )
+    assert any("on_balance_change" in r.getMessage() for r in caplog.records)
 
 
 @pytest.mark.asyncio

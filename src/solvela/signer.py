@@ -1,4 +1,5 @@
 """Solvela signer — pluggable payment signing interface."""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -80,9 +81,7 @@ class KeypairSigner(Signer):
             mint = Pubkey.from_string(USDC_MINT)
 
             # SPL Token program
-            token_program = Pubkey.from_string(
-                "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-            )
+            token_program = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
 
             # Derive ATAs
             sender_ata = self._derive_ata(sender, mint)
@@ -105,38 +104,24 @@ class KeypairSigner(Signer):
                 # uncontextualised and embed the raw response in the
                 # traceback.
                 if resp.status_code != 200:
-                    raise SignerError(
-                        f"Blockhash RPC HTTP {resp.status_code}"
-                    )
+                    raise SignerError(f"Blockhash RPC HTTP {resp.status_code}")
                 import json
 
                 try:
                     data = resp.json()
                 except json.JSONDecodeError as err:
-                    raise SignerError(
-                        "Blockhash RPC: malformed JSON body"
-                    ) from err
+                    raise SignerError("Blockhash RPC: malformed JSON body") from err
                 # Guard against missing keys / RPC error responses. Indexing
                 # blindly with `data["result"]["value"]["blockhash"]` would
                 # raise a `KeyError` whose message embeds the raw RPC payload
                 # — leaking node URLs, internal error messages, etc. into
                 # tracebacks and Sentry events.
-                result = (
-                    data.get("result", {}).get("value", {})
-                    if isinstance(data, dict)
-                    else {}
-                )
-                blockhash_str = (
-                    result.get("blockhash") if isinstance(result, dict) else None
-                )
+                result = data.get("result", {}).get("value", {}) if isinstance(data, dict) else {}
+                blockhash_str = result.get("blockhash") if isinstance(result, dict) else None
                 if not blockhash_str:
                     rpc_err = data.get("error") if isinstance(data, dict) else None
-                    err_code = (
-                        rpc_err.get("code") if isinstance(rpc_err, dict) else None
-                    )
-                    raise SignerError(
-                        f"RPC did not return a blockhash (code: {err_code})"
-                    )
+                    err_code = rpc_err.get("code") if isinstance(rpc_err, dict) else None
+                    raise SignerError(f"RPC did not return a blockhash (code: {err_code})")
                 blockhash = Blockhash.from_string(blockhash_str)
 
             # Build SPL Token transfer instruction
@@ -145,15 +130,9 @@ class KeypairSigner(Signer):
             transfer_ix = Instruction(
                 program_id=token_program,
                 accounts=[
-                    AccountMeta(
-                        pubkey=sender_ata, is_signer=False, is_writable=True
-                    ),
-                    AccountMeta(
-                        pubkey=recipient_ata, is_signer=False, is_writable=True
-                    ),
-                    AccountMeta(
-                        pubkey=sender, is_signer=True, is_writable=False
-                    ),
+                    AccountMeta(pubkey=sender_ata, is_signer=False, is_writable=True),
+                    AccountMeta(pubkey=recipient_ata, is_signer=False, is_writable=True),
+                    AccountMeta(pubkey=sender, is_signer=True, is_writable=False),
                 ],
                 data=transfer_data,
             )
@@ -183,12 +162,8 @@ class KeypairSigner(Signer):
         """Derive Associated Token Account address."""
         from solders.pubkey import Pubkey
 
-        ata_program = Pubkey.from_string(
-            "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
-        )
-        token_program = Pubkey.from_string(
-            "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
-        )
+        ata_program = Pubkey.from_string("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")
+        token_program = Pubkey.from_string("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")
         # PDA: seeds = [owner, token_program, mint], program = ata_program
         derived, _bump = Pubkey.find_program_address(
             [bytes(owner), bytes(token_program), bytes(mint)],

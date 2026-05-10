@@ -1,4 +1,5 @@
 """Integration tests for Transport — HTTP interactions via pytest-httpx."""
+
 from __future__ import annotations
 
 import json
