@@ -17,6 +17,7 @@ from solvela.errors import (
 )
 from solvela.signer import KeypairSigner, Signer
 from solvela.types import (
+    AtomicUsdc,
     ChatChunk,
     ChatMessage,
     ChatRequest,
@@ -53,6 +54,7 @@ __all__ = [
     "Wallet",
     # Wire types — exposed so callers can annotate their own code without
     # reaching into ``solvela.types``.
+    "AtomicUsdc",
     "ChatChunk",
     "ChatMessage",
     "ChatRequest",

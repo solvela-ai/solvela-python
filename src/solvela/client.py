@@ -18,6 +18,7 @@ from solvela.quality import check_degraded
 from solvela.session import SessionStore
 from solvela.transport import Transport
 from solvela.types import (
+    AtomicUsdc,
     ChatChunk,
     ChatMessage,
     ChatRequest,
@@ -242,7 +243,7 @@ class SolvelaClient:
         self._validate_payment(accept)
 
         payload = await self._signer.sign_payment(
-            amount_atomic=int(accept.amount),
+            amount_atomic=AtomicUsdc(int(accept.amount)),
             recipient=accept.pay_to,
             resource=result.resource,
             accepted=accept,
@@ -303,7 +304,10 @@ class SolvelaClient:
             self._validate_payment(accept)
 
             payload = await self._signer.sign_payment(
-                amount_atomic=int(accept.amount),
+                # Wire amount is a string for cross-language fidelity; cast at
+                # this single boundary so the rest of the SDK only ever sees
+                # the typed AtomicUsdc.
+                amount_atomic=AtomicUsdc(int(accept.amount)),
                 recipient=accept.pay_to,
                 resource=result.resource,
                 accepted=accept,
@@ -351,14 +355,14 @@ class SolvelaClient:
                 expected=self._config.expected_recipient,
                 actual=accept.pay_to,
             )
-        amount = int(accept.amount)
+        amount = AtomicUsdc(int(accept.amount))
         if (
             self._config.max_payment_amount is not None
             and amount > self._config.max_payment_amount
         ):
             raise AmountExceedsMaxError(
                 amount=amount,
-                max_amount=self._config.max_payment_amount,
+                max_amount=AtomicUsdc(self._config.max_payment_amount),
             )
 
     async def _query_balance(self, address: str) -> float:

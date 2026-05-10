@@ -426,6 +426,37 @@ class TestToolCallDeltaTypeValidation:
             ToolCallDelta.from_dict({"index": 0, "type": "magic"})
 
 
+class TestAtomicUsdc:
+    """``AtomicUsdc`` is a NewType — zero runtime overhead, type-only distinction."""
+
+    def test_is_int_at_runtime(self) -> None:
+        from solvela.types import AtomicUsdc
+
+        # NewType is a callable that returns its argument unchanged. Runtime
+        # type is plain int — the discrimination only exists for mypy.
+        value = AtomicUsdc(1_000_000)
+        assert value == 1_000_000
+        assert isinstance(value, int)
+
+    def test_arithmetic_works(self) -> None:
+        from solvela.types import AtomicUsdc
+
+        # Internal arithmetic between AtomicUsdc values still produces ints
+        # at runtime; callers must re-wrap if they want the type back.
+        a = AtomicUsdc(500_000)
+        b = AtomicUsdc(750_000)
+        assert AtomicUsdc(a + b) == 1_250_000
+
+    def test_exposed_in_package_surface(self) -> None:
+        # I10 added wire-type exports; AtomicUsdc joins that surface so
+        # callers can annotate their own atomic-unit values without
+        # reaching into ``solvela.types``.
+        import solvela
+
+        assert solvela.AtomicUsdc is not None
+        assert "AtomicUsdc" in solvela.__all__
+
+
 class TestFinishReasonValidation:
     """`finish_reason` is the closed Literal stop|length|tool_calls|content_filter."""
 

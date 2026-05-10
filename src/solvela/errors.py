@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from solvela.types import PaymentRequired
+    from solvela.types import AtomicUsdc, PaymentRequired
 
 
 class ClientError(Exception):
@@ -20,9 +20,14 @@ class SignerError(ClientError):
 
 
 class InsufficientBalanceError(ClientError):
-    """Raised when wallet balance is too low for a payment."""
+    """Raised when wallet balance is too low for a payment.
 
-    def __init__(self, have: int, need: int) -> None:
+    ``have`` and ``need`` are USDC atomic units (1 USDC = 1_000_000). The
+    typed ``AtomicUsdc`` annotation prevents accidental conflation with
+    human-readable USDC floats inside the SDK.
+    """
+
+    def __init__(self, have: AtomicUsdc, need: AtomicUsdc) -> None:
         self.have = have
         self.need = need
         super().__init__(f"Insufficient balance: have {have}, need {need}")
@@ -64,9 +69,12 @@ class RecipientMismatchError(ClientError):
 
 
 class AmountExceedsMaxError(ClientError):
-    """Raised when a payment amount exceeds the configured maximum."""
+    """Raised when a payment amount exceeds the configured maximum.
 
-    def __init__(self, amount: int, max_amount: int) -> None:
+    Both fields are USDC atomic units (typed ``AtomicUsdc``).
+    """
+
+    def __init__(self, amount: AtomicUsdc, max_amount: AtomicUsdc) -> None:
         self.amount = amount
         self.max_amount = max_amount
         super().__init__(f"Amount {amount} exceeds max {max_amount}")
