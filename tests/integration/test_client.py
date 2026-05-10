@@ -8,7 +8,7 @@ import pytest
 
 from solvela.client import SolvelaClient
 from solvela.config import ClientConfig
-from solvela.errors import PaymentRejectedError, PaymentRequiredError
+from solvela.errors import ClientError, PaymentRejectedError, PaymentRequiredError
 from solvela.signer import Signer
 from solvela.types import (
     AtomicUsdc,
@@ -245,10 +245,50 @@ async def test_chat_402_after_signing_raises_payment_rejected(httpx_mock) -> Non
     config = ClientConfig(gateway_url=GATEWAY_URL, max_payment_amount=None)
     client = SolvelaClient(config=config, signer=_StubSigner())
 
-    with pytest.raises(PaymentRejectedError):
+    with pytest.raises(PaymentRejectedError) as exc_info:
         await client.chat(_chat_request())
 
     assert len(httpx_mock.get_requests()) == 2
+    # Inheritance regression guard: callers using `except ClientError` must
+    # still catch this. PaymentRejectedError → ClientError → Exception.
+    assert isinstance(exc_info.value, ClientError)
+    # Body capture: the second-402 PaymentRequired struct must be reachable
+    # from the exception so callers can inspect *why* the gateway rejected.
+    assert exc_info.value.payment_required is not None
+    assert exc_info.value.payment_required.cost_breakdown.total == "1000"
+
+
+@pytest.mark.asyncio
+async def test_chat_stream_402_after_signing_raises_payment_rejected(
+    httpx_mock,
+) -> None:
+    """Streaming-path symmetry: post-signing 402 surfaces as PaymentRejectedError.
+
+    Without the wrap in chat_stream, send_chat_stream would raise the bare
+    PaymentRequiredError it uses for any 402 — callers cannot distinguish
+    "needs signing" from "signed and rejected" on the streaming path.
+    """
+    # First call: preflight probe → 402 (gateway demands payment).
+    httpx_mock.add_response(
+        url=f"{GATEWAY_URL}/v1/chat/completions",
+        json=_payment_required_json(),
+        status_code=402,
+    )
+    # Second call: streaming POST with the signed header → still 402.
+    httpx_mock.add_response(
+        url=f"{GATEWAY_URL}/v1/chat/completions",
+        json=_payment_required_json(),
+        status_code=402,
+    )
+    config = ClientConfig(gateway_url=GATEWAY_URL, max_payment_amount=None)
+    client = SolvelaClient(config=config, signer=_StubSigner())
+
+    with pytest.raises(PaymentRejectedError) as exc_info:
+        async for _ in client.chat_stream(_chat_request()):
+            pass
+
+    assert isinstance(exc_info.value, ClientError)
+    assert exc_info.value.payment_required is not None
 
 
 @pytest.mark.asyncio

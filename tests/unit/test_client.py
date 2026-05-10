@@ -330,6 +330,27 @@ class TestFindCompatibleScheme:
         accept = client._find_compatible_scheme(self._payment_required(["exact"]))
         assert accept.scheme == "exact"
 
+    def test_default_falls_back_to_escrow_when_only_escrow_offered(self) -> None:
+        # Symmetric fallback: with the default prefer_escrow=False, an
+        # escrow-only gateway must still be usable. Without this, the second
+        # loop would only ever fire under prefer_escrow=True.
+        client = SolvelaClient(config=ClientConfig())
+        accept = client._find_compatible_scheme(self._payment_required(["escrow"]))
+        assert accept.scheme == "escrow"
+
+    def test_unhonored_preference_emits_warning(self, caplog) -> None:  # type: ignore[no-untyped-def]
+        # Silent fallback hides config bugs. A WARNING is the cheapest signal
+        # to operators that the runtime preference wasn't honored.
+        import logging
+
+        client = SolvelaClient(config=ClientConfig(prefer_escrow=True))
+        with caplog.at_level(logging.WARNING, logger="solvela.client"):
+            client._find_compatible_scheme(self._payment_required(["exact"]))
+        assert any(
+            "prefer_escrow" in r.getMessage() and "falling back" in r.getMessage()
+            for r in caplog.records
+        )
+
     def test_no_compatible_scheme_raises(self) -> None:
         client = SolvelaClient(config=ClientConfig())
         pr = PaymentRequired(

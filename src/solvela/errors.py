@@ -52,10 +52,23 @@ class PaymentRequiredError(ClientError):
 
 
 class PaymentRejectedError(ClientError):
-    """Raised when a payment is rejected by the gateway."""
+    """Raised when a payment is rejected by the gateway after signing.
 
-    def __init__(self, reason: str) -> None:
+    ``payment_required`` carries the second 402 body (cost breakdown, accepted
+    schemes, gateway error message) so callers can inspect *why* payment was
+    rejected — replay nonce, expired signature, balance issue, etc. — instead
+    of getting a hardcoded reason string with no context. Optional for
+    backward-compatibility with callers constructing this error from a string
+    only.
+    """
+
+    def __init__(
+        self,
+        reason: str,
+        payment_required: PaymentRequired | None = None,
+    ) -> None:
         self.reason = reason
+        self.payment_required = payment_required
         super().__init__(f"Payment rejected: {reason}")
 
 

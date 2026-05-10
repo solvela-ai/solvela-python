@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import base64
 import json
+import logging
 from typing import TYPE_CHECKING
 
 from solvela.cache import ResponseCache
@@ -35,6 +36,8 @@ if TYPE_CHECKING:
 
     from solvela.signer import Signer
     from solvela.wallet import Wallet
+
+logger = logging.getLogger(__name__)
 
 
 class SolvelaClient:
@@ -186,10 +189,23 @@ class SolvelaClient:
             effective_request
         )
 
-        async for chunk in self._transport.send_chat_stream(
-            effective_request, payment_signature=payment_signature
-        ):
-            yield chunk
+        # If we already produced a signature, a 402 on the streaming POST is a
+        # *post-signing* rejection — surface it as PaymentRejectedError (typed),
+        # not the bare PaymentRequiredError that send_chat_stream raises for any
+        # 402. Without this, callers cannot distinguish "needs signing" from
+        # "signed and rejected" on the streaming path.
+        try:
+            async for chunk in self._transport.send_chat_stream(
+                effective_request, payment_signature=payment_signature
+            ):
+                yield chunk
+        except PaymentRequiredError as exc:
+            if payment_signature is not None:
+                raise PaymentRejectedError(
+                    "second 402 after signing (streaming)",
+                    payment_required=exc.payment_required,
+                ) from exc
+            raise
 
         # Step 4: Session update
         if self._session_store is not None and session_id is not None:
@@ -208,7 +224,9 @@ class SolvelaClient:
 
         Raises:
             PaymentRequiredError: payment is required but no signer is configured.
-            ClientError: signing succeeded but the gateway still rejected payment.
+            PaymentRejectedError: gateway rejected the signed streaming request.
+                Surfaced by the caller (``chat_stream``) — the preflight itself
+                does not re-probe to avoid doubling round-trips.
 
         Note:
             This implementation assumes the gateway always returns 402 before
@@ -316,7 +334,10 @@ class SolvelaClient:
                 request, payment_signature=sig, extra_headers=extra_headers
             )
             if isinstance(result, PaymentRequired):
-                raise PaymentRejectedError("second 402 after signing")
+                raise PaymentRejectedError(
+                    "second 402 after signing",
+                    payment_required=result,
+                )
 
         return result
 
@@ -335,6 +356,16 @@ class SolvelaClient:
                 return accept
         for accept in pr.accepts:
             if accept.scheme == fallback:
+                # Caller expressed a preference the gateway didn't honor — log
+                # at WARNING so this is observable in production rather than a
+                # silent fallback. WARNING (not ERROR) because the call still
+                # proceeds successfully on the other scheme.
+                logger.warning(
+                    "Configured prefer_escrow=%s but gateway only offered %r; "
+                    "falling back",
+                    self._config.prefer_escrow,
+                    fallback,
+                )
                 return accept
         raise ClientError("No compatible payment scheme found")
 
