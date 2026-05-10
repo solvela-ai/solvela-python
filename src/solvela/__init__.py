@@ -27,6 +27,7 @@ from solvela.types import (
     PaymentPayload,
     PaymentRequired,
     Role,
+    Scheme,
     ToolType,
 )
 from solvela.wallet import Wallet
@@ -43,6 +44,7 @@ __all__ = [
     "PaymentRejectedError",
     "PaymentRequiredError",
     "RecipientMismatchError",
+    "Scheme",
     "SignerError",
     "TimeoutError",
     "WalletError",

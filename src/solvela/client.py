@@ -362,7 +362,14 @@ class SolvelaClient:
             )
 
     async def _query_balance(self, address: str) -> float:
-        """Query USDC token balance for an address via RPC."""
+        """Query USDC token balance for an address via RPC.
+
+        Returns ``0.0`` only when the ATA legitimately does not exist (RPC
+        reports "could not find account"). Any other RPC error — rate limit,
+        node down, malformed response — raises ``ClientError`` so the balance
+        guard cannot be tripped silently into the free-fallback path by an
+        infrastructure failure that masquerades as a zero balance.
+        """
         import httpx
         from solders.pubkey import Pubkey
 
@@ -389,10 +396,47 @@ class SolvelaClient:
                     "params": [str(ata)],
                 },
             )
-            data = resp.json()
-            if "error" in data:
-                return 0.0  # ATA doesn't exist
-            return float(data["result"]["value"]["uiAmount"] or 0.0)
+            if resp.status_code != 200:
+                raise ClientError(f"USDC balance RPC HTTP {resp.status_code}")
+            try:
+                data = resp.json()
+            except Exception as err:
+                raise ClientError("USDC balance RPC: malformed JSON body") from err
+
+            rpc_err = data.get("error") if isinstance(data, dict) else None
+            if rpc_err is not None:
+                # Only the "account does not exist" case is treated as a real
+                # zero balance. Every other RPC error must surface so the
+                # caller (or balance poller) does not silently switch to the
+                # free-fallback model on a transient infrastructure issue.
+                #
+                # Match the canonical Solana validator phrase ("could not find
+                # account") rather than the broad "not found" substring — the
+                # latter also matches "Method not found" (-32601, misconfigured
+                # endpoint) and "Block not found"/"Slot not found" (transient
+                # node sync), neither of which means the balance is zero.
+                msg = (
+                    rpc_err.get("message", "")
+                    if isinstance(rpc_err, dict)
+                    else str(rpc_err)
+                )
+                msg_lower = msg.lower()
+                if "could not find account" in msg_lower or "account not found" in msg_lower:
+                    return 0.0
+                raise ClientError(f"USDC balance RPC error: {msg}")
+
+            try:
+                value = data["result"]["value"]
+            except (KeyError, TypeError) as inner_err:
+                raise ClientError(
+                    "USDC balance RPC: unexpected response shape"
+                ) from inner_err
+            if value is None:
+                # Some RPC providers return `result.value = null` instead of
+                # an explicit error when the ATA is absent.
+                return 0.0
+            ui_amount = value.get("uiAmount") if isinstance(value, dict) else None
+            return float(ui_amount or 0.0)
 
     def __repr__(self) -> str:
         return f"SolvelaClient(gateway={self._config.gateway_url}, wallet=REDACTED)"

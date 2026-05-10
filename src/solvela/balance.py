@@ -5,6 +5,8 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
+from solvela.errors import ClientError
+
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
@@ -60,11 +62,22 @@ class BalanceMonitor:
                     self._was_low = is_low
             except asyncio.CancelledError:
                 break
+            except ClientError:
+                # The new C3 fix in client._query_balance distinguishes ATA-absent
+                # ("real zero") from RPC failure (raises ClientError). On failure
+                # we must NOT keep the previous balance — a stale 0.0 would lock
+                # callers into the free-fallback model for the entire RPC outage
+                # window. None signals "unknown", letting the balance guard skip.
+                self._balance = None
+                logger.warning("Balance fetch failed (RPC error)", exc_info=True)
             except Exception:
                 # Surface poll errors at WARNING level. A silent failure (the
                 # previous DEBUG default) would leave last_known_balance() stuck
                 # at None and silently disable any free-fallback-model guard
-                # downstream. Mirrors the warn-on-poll-error fix in the TS SDK.
+                # downstream. Reset _balance to None so a stale value doesn't
+                # lock callers into the free-fallback model for the entire
+                # outage window — None signals "unknown" to the balance guard.
+                self._balance = None
                 logger.warning("Balance fetch failed", exc_info=True)
 
             try:
