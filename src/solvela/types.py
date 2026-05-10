@@ -26,6 +26,12 @@ def _validate_tool_type(value: str) -> ToolType:
     return value  # type: ignore[return-value]
 
 
+def _validate_optional_tool_type(value: str | None) -> ToolType | None:
+    if value is None:
+        return None
+    return _validate_tool_type(value)
+
+
 def _validate_finish_reason(value: str | None) -> FinishReason | None:
     if value is None:
         return None
@@ -129,7 +135,7 @@ class ToolCallDelta:
         return cls(
             index=data["index"],
             id=data.get("id"),
-            type=data.get("type"),
+            type=_validate_optional_tool_type(data.get("type")),
             function=FunctionCallDelta.from_dict(fn) if fn else None,
         )
 

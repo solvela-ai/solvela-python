@@ -366,6 +366,28 @@ class TestToolCallTypeValidation:
             ToolCall.from_dict(self._data("magic"))
 
 
+class TestToolCallDeltaTypeValidation:
+    """Streaming partial of ToolCall must enforce the same Literal as ToolCall."""
+
+    def test_accepts_none(self) -> None:
+        from solvela.types import ToolCallDelta
+
+        delta = ToolCallDelta.from_dict({"index": 0})
+        assert delta.type is None
+
+    def test_accepts_function_type(self) -> None:
+        from solvela.types import ToolCallDelta
+
+        delta = ToolCallDelta.from_dict({"index": 0, "type": "function"})
+        assert delta.type == "function"
+
+    def test_rejects_unknown_type(self) -> None:
+        from solvela.types import ToolCallDelta
+
+        with pytest.raises(ValueError, match="Unknown tool type"):
+            ToolCallDelta.from_dict({"index": 0, "type": "magic"})
+
+
 class TestFinishReasonValidation:
     """`finish_reason` is the closed Literal stop|length|tool_calls|content_filter."""
 

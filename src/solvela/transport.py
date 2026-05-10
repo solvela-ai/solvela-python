@@ -1,4 +1,5 @@
 """Solvela transport — async HTTP + SSE streaming via httpx."""
+
 from __future__ import annotations
 
 import json
@@ -95,23 +96,23 @@ class Transport:
             httpx.AsyncClient(timeout=self._timeout) as client,
             client.stream("POST", url, json=body, headers=headers) as resp,
         ):
-                if resp.status_code == 402:
-                    raw = await resp.aread()
-                    pr = PaymentRequired.from_dict(_decode_json_bytes(raw))
-                    raise PaymentRequiredError(pr)
-                if resp.status_code != 200:
-                    raw = await resp.aread()
-                    raise GatewayError(
-                        status=resp.status_code,
-                        message=_extract_error_message_bytes(raw),
-                    )
+            if resp.status_code == 402:
+                raw = await resp.aread()
+                pr = PaymentRequired.from_dict(_decode_json_bytes(raw))
+                raise PaymentRequiredError(pr)
+            if resp.status_code != 200:
+                raw = await resp.aread()
+                raise GatewayError(
+                    status=resp.status_code,
+                    message=_extract_error_message_bytes(raw),
+                )
 
-                async for line in resp.aiter_lines():
-                    if line.startswith("data: "):
-                        data_str = line[6:]
-                        if data_str.strip() == "[DONE]":
-                            break
-                        yield ChatChunk.from_dict(json.loads(data_str))
+            async for line in resp.aiter_lines():
+                if line.startswith("data: "):
+                    data_str = line[6:]
+                    if data_str.strip() == "[DONE]":
+                        break
+                    yield ChatChunk.from_dict(json.loads(data_str))
 
     async def fetch_models(self) -> list[dict]:
         """Fetch model list from gateway."""
