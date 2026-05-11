@@ -149,3 +149,52 @@ async def test_fetch_models(httpx_mock) -> None:
     models = await transport.fetch_models()
     assert len(models) == 2
     assert models[0]["id"] == "gpt-4o"
+
+
+# ---------------------------------------------------------------------------
+# 402 envelope unwrap — the real gateway returns
+# ``{"error": {"message": "<stringified PaymentRequired>", "type": "invalid_payment"}}``
+# rather than the bare PaymentRequired body. Without the unwrap, the SDK
+# could not parse a real 402 at all (KeyError on missing top-level keys).
+
+
+def _wrapped_402_envelope() -> dict:
+    return {
+        "error": {
+            "message": json.dumps(_payment_required_json()),
+            "type": "invalid_payment",
+        }
+    }
+
+
+@pytest.mark.asyncio
+async def test_send_chat_402_unwraps_gateway_envelope(httpx_mock) -> None:
+    """The 402 envelope must be unwrapped before PaymentRequired.from_dict."""
+    httpx_mock.add_response(
+        url=f"{GATEWAY_URL}/v1/chat/completions",
+        json=_wrapped_402_envelope(),
+        status_code=402,
+    )
+    transport = Transport(GATEWAY_URL)
+    result = await transport.send_chat(_chat_request())
+    assert isinstance(result, PaymentRequired)
+    assert result.x402_version == 2
+    assert result.cost_breakdown.total == "1000"
+    assert result.accepts[0].scheme == "exact"
+
+
+@pytest.mark.asyncio
+async def test_send_chat_stream_402_unwraps_gateway_envelope(httpx_mock) -> None:
+    """Streaming path must apply the same envelope unwrap as send_chat."""
+    from solvela.errors import PaymentRequiredError
+
+    httpx_mock.add_response(
+        url=f"{GATEWAY_URL}/v1/chat/completions",
+        json=_wrapped_402_envelope(),
+        status_code=402,
+    )
+    transport = Transport(GATEWAY_URL)
+    with pytest.raises(PaymentRequiredError) as exc_info:
+        async for _ in transport.send_chat_stream(_chat_request()):
+            pass
+    assert exc_info.value.payment_required.cost_breakdown.total == "1000"
