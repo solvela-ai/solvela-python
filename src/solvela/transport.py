@@ -65,7 +65,8 @@ class Transport:
             if resp.status_code == 200:
                 return ChatResponse.from_dict(_decode_json(resp))
             elif resp.status_code == 402:
-                return PaymentRequired.from_dict(_decode_json(resp))
+                body = _unwrap_payment_required_envelope(_decode_json(resp))
+                return PaymentRequired.from_dict(body)
             else:
                 raise GatewayError(
                     status=resp.status_code,
@@ -98,7 +99,8 @@ class Transport:
         ):
             if resp.status_code == 402:
                 raw = await resp.aread()
-                pr = PaymentRequired.from_dict(_decode_json_bytes(raw))
+                body = _unwrap_payment_required_envelope(_decode_json_bytes(raw))
+                pr = PaymentRequired.from_dict(body)
                 raise PaymentRequiredError(pr)
             if resp.status_code != 200:
                 raw = await resp.aread()
@@ -141,6 +143,35 @@ def _decode_json(resp: httpx.Response) -> Any:  # noqa: ANN401  # JSON shape var
             status=resp.status_code,
             message="malformed JSON body",
         ) from err
+
+
+def _unwrap_payment_required_envelope(body: Any) -> Any:  # noqa: ANN401  # JSON shape
+    """Unwrap the gateway's 402 envelope around a PaymentRequired payload.
+
+    The gateway wraps 402 bodies in an OpenAI-style error envelope:
+
+        {"error": {"message": "<stringified PaymentRequired JSON>",
+                   "type": "invalid_payment"}}
+
+    rather than emitting the PaymentRequired at the top level. This helper
+    detects the envelope and returns the inner parsed payload; if the
+    response is already in the un-wrapped shape (which the gateway team
+    may switch to upstream), the body is returned untouched.
+    """
+    if (
+        isinstance(body, dict)
+        and isinstance(body.get("error"), dict)
+        and isinstance(body["error"].get("message"), str)
+    ):
+        try:
+            return json.loads(body["error"]["message"])
+        except json.JSONDecodeError:
+            # Inner message is not JSON — treat as a plain gateway error, not
+            # a PaymentRequired. Fall through with the original body so the
+            # caller's PaymentRequired.from_dict raises a clear KeyError that
+            # surfaces as ClientError per the project's wire-error convention.
+            return body
+    return body
 
 
 def _decode_json_bytes(raw: bytes) -> Any:  # noqa: ANN401

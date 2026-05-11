@@ -311,45 +311,102 @@ class TestPaymentPayload:
 
 
 class TestModelInfo:
-    def test_from_dict(self) -> None:
+    """Wire-format alignment with the gateway's ``GET /v1/models`` response.
+
+    Fixtures intentionally mirror a real ``/v1/models`` entry verbatim so a
+    future shape change on the gateway side breaks this test rather than
+    silently parsing into stale fields. The previous fixture used a fictional
+    flat shape that the gateway never emitted — and as a result
+    ``client.models()`` raised ``KeyError`` against any real gateway.
+    """
+
+    def test_from_dict_real_gateway_shape(self) -> None:
+        # Verbatim from `curl http://localhost:8402/v1/models | jq .data[1]`
+        # against a running gateway — the GPT-4o entry.
         data = {
-            "id": "gpt-4",
+            "id": "openai/gpt-4o",
+            "object": "model",
             "provider": "openai",
-            "model_id": "gpt-4-0125-preview",
-            "display_name": "GPT-4 Turbo",
-            "input_cost_per_million": 10000,
-            "output_cost_per_million": 30000,
+            "display_name": "GPT-4o",
             "context_window": 128000,
-            "supports_streaming": True,
-            "supports_tools": True,
-            "supports_vision": True,
-            "reasoning": False,
-            "supports_structured_output": True,
-            "supports_batch": False,
-            "max_output_tokens": 4096,
+            "capabilities": {
+                "streaming": True,
+                "tools": True,
+                "vision": True,
+                "reasoning": False,
+            },
+            "pricing": {
+                "input_per_million": 2.5,
+                "output_per_million": 10.0,
+                "currency": "USDC",
+                "fee_percent": 5,
+            },
         }
         info = ModelInfo.from_dict(data)
-        assert info.id == "gpt-4"
+        assert info.id == "openai/gpt-4o"
         assert info.provider == "openai"
+        assert info.display_name == "GPT-4o"
         assert info.context_window == 128000
+        # Capabilities flattened off the nested object.
         assert info.supports_streaming is True
-        assert info.max_output_tokens == 4096
+        assert info.supports_tools is True
+        assert info.supports_vision is True
+        assert info.reasoning is False
+        # Pricing pulled off the nested object as USDC-per-million floats.
+        assert info.input_usdc_per_million == 2.5
+        assert info.output_usdc_per_million == 10.0
+        assert info.currency == "USDC"
+        assert info.fee_percent == 5
 
-    def test_from_dict_defaults(self) -> None:
+    def test_from_dict_defaults_when_capabilities_and_pricing_absent(self) -> None:
+        # A minimal entry — gateway is unlikely to ever emit this, but the
+        # SDK should not crash if either nested object is missing.
         data = {
-            "id": "test-model",
+            "id": "test/model",
             "provider": "test",
-            "model_id": "test-1",
             "display_name": "Test Model",
-            "input_cost_per_million": 1000,
-            "output_cost_per_million": 2000,
             "context_window": 4096,
         }
         info = ModelInfo.from_dict(data)
         assert info.supports_streaming is False
         assert info.supports_tools is False
         assert info.reasoning is False
-        assert info.max_output_tokens is None
+        assert info.input_usdc_per_million == 0.0
+        assert info.output_usdc_per_million == 0.0
+        assert info.currency == "USDC"
+        assert info.fee_percent == 5
+
+    def test_to_dict_round_trips(self) -> None:
+        # to_dict() must produce the same nested shape the gateway emits, so
+        # ``from_dict(model.to_dict())`` is a stable round-trip. Tests-as-
+        # contract guard against the SDK inventing fields the gateway will
+        # not recognize on the way back.
+        original = ModelInfo(
+            id="anthropic/claude-sonnet-4-20250514",
+            provider="anthropic",
+            display_name="Claude Sonnet 4.6",
+            context_window=200000,
+            supports_streaming=True,
+            supports_tools=True,
+            supports_vision=False,
+            reasoning=True,
+            input_usdc_per_million=3.0,
+            output_usdc_per_million=15.0,
+            currency="USDC",
+            fee_percent=5,
+        )
+        wire = original.to_dict()
+        # Match gateway shape.
+        assert wire["capabilities"] == {
+            "streaming": True,
+            "tools": True,
+            "vision": False,
+            "reasoning": True,
+        }
+        assert wire["pricing"]["input_per_million"] == 3.0
+        assert wire["pricing"]["output_per_million"] == 15.0
+        # Round-trip parity.
+        assert ModelInfo.from_dict(wire) == original
 
 
 # --- Cache key determinism ---

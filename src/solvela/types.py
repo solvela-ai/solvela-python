@@ -669,58 +669,67 @@ class PaymentPayload:
 
 @dataclass
 class ModelInfo:
-    """Model metadata from the gateway's model registry."""
+    """Model metadata from the gateway's ``GET /v1/models`` registry.
+
+    Mirrors the gateway's response shape: capabilities are reported under a
+    nested ``capabilities`` object, and pricing under a nested ``pricing``
+    object. ``from_dict`` flattens those so internal code stays terse.
+
+    Pricing values are USDC per million tokens as floats (e.g. ``0.28`` for
+    DeepSeek's input rate), not atomic USDC units — the gateway formats them
+    that way to match the human-readable shape of every other LLM pricing
+    page. Convert at the boundary if you need atomic units.
+    """
 
     id: str
     provider: str
-    model_id: str
     display_name: str
-    input_cost_per_million: int
-    output_cost_per_million: int
     context_window: int
     supports_streaming: bool = False
     supports_tools: bool = False
     supports_vision: bool = False
     reasoning: bool = False
-    supports_structured_output: bool = False
-    supports_batch: bool = False
-    max_output_tokens: int | None = None
+    input_usdc_per_million: float = 0.0
+    output_usdc_per_million: float = 0.0
+    currency: str = "USDC"
+    fee_percent: int = 5
 
     def to_dict(self) -> dict[str, Any]:
-        d: dict[str, Any] = {
+        return {
             "id": self.id,
+            "object": "model",
             "provider": self.provider,
-            "model_id": self.model_id,
             "display_name": self.display_name,
-            "input_cost_per_million": self.input_cost_per_million,
-            "output_cost_per_million": self.output_cost_per_million,
             "context_window": self.context_window,
-            "supports_streaming": self.supports_streaming,
-            "supports_tools": self.supports_tools,
-            "supports_vision": self.supports_vision,
-            "reasoning": self.reasoning,
-            "supports_structured_output": self.supports_structured_output,
-            "supports_batch": self.supports_batch,
+            "capabilities": {
+                "streaming": self.supports_streaming,
+                "tools": self.supports_tools,
+                "vision": self.supports_vision,
+                "reasoning": self.reasoning,
+            },
+            "pricing": {
+                "input_per_million": self.input_usdc_per_million,
+                "output_per_million": self.output_usdc_per_million,
+                "currency": self.currency,
+                "fee_percent": self.fee_percent,
+            },
         }
-        if self.max_output_tokens is not None:
-            d["max_output_tokens"] = self.max_output_tokens
-        return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ModelInfo:
+        caps = data.get("capabilities") or {}
+        pricing = data.get("pricing") or {}
         return cls(
             id=data["id"],
             provider=data["provider"],
-            model_id=data["model_id"],
             display_name=data["display_name"],
-            input_cost_per_million=data["input_cost_per_million"],
-            output_cost_per_million=data["output_cost_per_million"],
             context_window=data["context_window"],
-            supports_streaming=data.get("supports_streaming", False),
-            supports_tools=data.get("supports_tools", False),
-            supports_vision=data.get("supports_vision", False),
-            reasoning=data.get("reasoning", False),
-            supports_structured_output=data.get("supports_structured_output", False),
-            supports_batch=data.get("supports_batch", False),
-            max_output_tokens=data.get("max_output_tokens"),
+            supports_streaming=bool(caps.get("streaming", False)),
+            supports_tools=bool(caps.get("tools", False)),
+            supports_vision=bool(caps.get("vision", False)),
+            reasoning=bool(caps.get("reasoning", False)),
+            input_usdc_per_million=float(pricing.get("input_per_million", 0.0)),
+            output_usdc_per_million=float(pricing.get("output_per_million", 0.0)),
+            currency=pricing.get("currency", "USDC"),
+            fee_percent=int(pricing.get("fee_percent", 5)),
         )
