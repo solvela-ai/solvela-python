@@ -1,4 +1,5 @@
 """Degraded response detection with 4 heuristics."""
+
 from __future__ import annotations
 
 from enum import Enum

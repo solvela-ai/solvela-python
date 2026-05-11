@@ -1,4 +1,5 @@
 """Unit tests for Signer — interface contract, ATA derivation, sign_payment."""
+
 from __future__ import annotations
 
 import base64
@@ -112,9 +113,7 @@ class TestSignPayment:
         signer = KeypairSigner(wallet, rpc_url=_RPC_URL)
         # Rate-limited blockhash fetch must surface as SignerError, not as a
         # JSONDecodeError or KeyError that leaks the raw body.
-        httpx_mock.add_response(
-            url=_RPC_URL, status_code=429, text="<html>Rate limited</html>"
-        )
+        httpx_mock.add_response(url=_RPC_URL, status_code=429, text="<html>Rate limited</html>")
 
         with pytest.raises(SignerError, match="HTTP 429"):
             await signer.sign_payment(

@@ -1,4 +1,5 @@
 """Solvela wire-format types — OpenAI-compatible chat and x402 payment types."""
+
 from __future__ import annotations
 
 import hashlib
@@ -279,9 +280,7 @@ class ChatRequest:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ChatRequest:
         raw_tools = data.get("tools")
-        tools = (
-            [ToolDefinition.from_dict(t) for t in raw_tools] if raw_tools is not None else None
-        )
+        tools = [ToolDefinition.from_dict(t) for t in raw_tools] if raw_tools is not None else None
         return cls(
             model=data["model"],
             messages=[ChatMessage.from_dict(m) for m in data["messages"]],

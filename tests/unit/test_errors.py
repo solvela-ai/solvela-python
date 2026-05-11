@@ -1,4 +1,5 @@
 """Tests for solvela.errors."""
+
 from __future__ import annotations
 
 from solvela.errors import (

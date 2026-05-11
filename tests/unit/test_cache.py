@@ -1,4 +1,5 @@
 """Tests for ResponseCache — LRU with TTL and dedup window."""
+
 from __future__ import annotations
 
 import time

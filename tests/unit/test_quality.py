@@ -1,4 +1,5 @@
 """Tests for quality check — degraded response detection."""
+
 from __future__ import annotations
 
 from solvela.quality import DegradedReason, check_degraded
@@ -15,8 +16,7 @@ class TestEmptyContent:
 class TestKnownErrorPhrases:
     def test_known_error_phrase(self) -> None:
         assert (
-            check_degraded("I cannot help with that request.")
-            == DegradedReason.KNOWN_ERROR_PHRASE
+            check_degraded("I cannot help with that request.") == DegradedReason.KNOWN_ERROR_PHRASE
         )
 
     def test_case_insensitive_error_phrase(self) -> None:
@@ -27,8 +27,7 @@ class TestKnownErrorPhrases:
 
     def test_im_sorry_phrase(self) -> None:
         assert (
-            check_degraded("I'm sorry, but I can't do that.")
-            == DegradedReason.KNOWN_ERROR_PHRASE
+            check_degraded("I'm sorry, but I can't do that.") == DegradedReason.KNOWN_ERROR_PHRASE
         )
 
 
@@ -43,11 +42,7 @@ class TestTruncatedMidWord:
     def test_truncated_mid_word(self) -> None:
         # >250 chars ending with a lowercase letter — the canonical
         # max_tokens-cut signature.
-        content = (
-            "This is a long response that contains many words and goes on "
-            + "a" * 200
-            + "b"
-        )
+        content = "This is a long response that contains many words and goes on " + "a" * 200 + "b"
         assert len(content) > 250
         assert check_degraded(content) == DegradedReason.TRUNCATED_MID_WORD
 

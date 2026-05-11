@@ -1,4 +1,5 @@
 """OpenAI-compatible wrapper for SolvelaClient."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any

@@ -1,4 +1,5 @@
 """Tests for solvela.types and solvela.constants."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -470,9 +471,7 @@ class TestFinishReasonValidation:
             "finish_reason": finish_reason,
         }
 
-    @pytest.mark.parametrize(
-        "reason", ["stop", "length", "tool_calls", "content_filter", None]
-    )
+    @pytest.mark.parametrize("reason", ["stop", "length", "tool_calls", "content_filter", None])
     def test_accepts_known_reasons(self, reason: str | None) -> None:
         from solvela.types import ChatChoice
 

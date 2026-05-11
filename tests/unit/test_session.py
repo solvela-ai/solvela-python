@@ -1,4 +1,5 @@
 """Tests for SessionStore — session tracking with three-strike escalation."""
+
 from __future__ import annotations
 
 import time
@@ -85,9 +86,9 @@ class TestDeriveSessionId:
 
         as_user = [ChatMessage(role=Role.USER, content="Hello")]
         as_assistant = [ChatMessage(role=Role.ASSISTANT, content="Hello")]
-        assert SessionStore.derive_session_id(
-            as_user
-        ) != SessionStore.derive_session_id(as_assistant)
+        assert SessionStore.derive_session_id(as_user) != SessionStore.derive_session_id(
+            as_assistant
+        )
 
     def test_empty_messages_is_stable(self) -> None:
         """Empty input must still produce a deterministic ID without raising."""

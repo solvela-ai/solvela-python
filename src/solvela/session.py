@@ -1,4 +1,5 @@
 """Session tracking with three-strike escalation."""
+
 from __future__ import annotations
 
 import hashlib
@@ -64,9 +65,7 @@ class SessionStore:
         """Remove all expired sessions."""
         with self._lock:
             now = time.monotonic()
-            expired = [
-                k for k, v in self._sessions.items() if now - v.created >= self._ttl
-            ]
+            expired = [k for k, v in self._sessions.items() if now - v.created >= self._ttl]
             for k in expired:
                 del self._sessions[k]
 

@@ -1,4 +1,5 @@
 """Solvela balance monitor — background USDC-SPL balance poller."""
+
 from __future__ import annotations
 
 import asyncio

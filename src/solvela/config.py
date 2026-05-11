@@ -1,4 +1,5 @@
 """Solvela client configuration and builder."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -35,8 +36,7 @@ def _validate_https_url(label: str, value: str) -> None:
     host = urlparse(value).hostname or ""
     if host not in _LOCAL_HOSTS:
         raise ClientError(
-            f"{label} must use https:// for non-local endpoints "
-            f"(got http:// host {host!r})"
+            f"{label} must use https:// for non-local endpoints (got http:// host {host!r})"
         )
 
 

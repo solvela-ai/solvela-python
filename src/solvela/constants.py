@@ -1,4 +1,5 @@
 """Solvela protocol constants."""
+
 from __future__ import annotations
 
 X402_VERSION: int = 2

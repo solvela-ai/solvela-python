@@ -1,4 +1,5 @@
 """Live contract tests — require a running Solvela gateway."""
+
 from __future__ import annotations
 
 import pytest

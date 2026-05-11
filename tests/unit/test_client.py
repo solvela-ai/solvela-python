@@ -1,4 +1,5 @@
 """Unit tests for SolvelaClient — construction and basic properties."""
+
 from __future__ import annotations
 
 import pytest
@@ -313,16 +314,12 @@ class TestFindCompatibleScheme:
 
     def test_default_prefers_exact_when_both_offered(self) -> None:
         client = SolvelaClient(config=ClientConfig())
-        accept = client._find_compatible_scheme(
-            self._payment_required(["escrow", "exact"])
-        )
+        accept = client._find_compatible_scheme(self._payment_required(["escrow", "exact"]))
         assert accept.scheme == "exact"
 
     def test_prefer_escrow_selects_escrow_when_both_offered(self) -> None:
         client = SolvelaClient(config=ClientConfig(prefer_escrow=True))
-        accept = client._find_compatible_scheme(
-            self._payment_required(["exact", "escrow"])
-        )
+        accept = client._find_compatible_scheme(self._payment_required(["exact", "escrow"]))
         assert accept.scheme == "escrow"
 
     def test_prefer_escrow_falls_back_to_exact_when_only_exact_offered(self) -> None:
